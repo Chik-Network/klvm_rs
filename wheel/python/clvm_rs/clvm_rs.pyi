@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 
 from .clvm_storage import CLVMStorage
 
-def run_serialized_chia_program(
+def run_serialized_chik_program(
     program: bytes, environment: bytes, max_cost: int, flags: int
 ) -> Tuple[int, CLVMStorage]: ...
 def deserialize_as_tree(

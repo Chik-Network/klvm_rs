@@ -2,8 +2,8 @@
 use libfuzzer_sys::fuzz_target;
 
 use clvmr::allocator::Allocator;
-use clvmr::chia_dialect::{
-    ChiaDialect, ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS, MEMPOOL_MODE,
+use clvmr::chik_dialect::{
+    ChikDialect, ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS, MEMPOOL_MODE,
     NO_UNKNOWN_OPS,
 };
 use clvmr::cost::Cost;
@@ -29,7 +29,7 @@ fuzz_target!(|data: &[u8]| {
         ENABLE_BLS_OPS | ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS | NO_UNKNOWN_OPS,
         MEMPOOL_MODE,
     ] {
-        let dialect = ChiaDialect::new(flags);
+        let dialect = ChikDialect::new(flags);
         allocator.restore_checkpoint(&allocator_checkpoint);
 
         let Reduction(_cost, _node) =

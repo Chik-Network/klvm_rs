@@ -3,7 +3,7 @@ name: Build Mac, Linux, and Windows wheels
 on:
   push:
     branches:
-      - main
+      - main1
       - dev
     tags:
         - '**'
@@ -26,7 +26,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - uses: chia-network/actions/setup-python@main
+    - uses: chik-network/actions/setup-python@main
       name: Install Python ${{ matrix.python }}
       with:
         python-version: ${{ matrix.python }}
@@ -260,7 +260,7 @@ jobs:
           cargo test --release --workspace
           python -m venv venv
           source venv/bin/activate
-          git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+          git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
           pip install ./clvm_tools
           pip install colorama maturin pytest pytest-cov
           maturin develop --release -m wheel/Cargo.toml --features=openssl

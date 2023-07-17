@@ -3,7 +3,7 @@ name: Build M1 Wheels
 on:
   push:
     branches:
-      - main
+      - main1
       - dev
     tags:
         - '**'
@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: Chia-Network/actions/clean-workspace@main
+    - uses: Chik-Network/actions/clean-workspace@main
 
     - name: Checkout code
       uses: actions/checkout@v3
@@ -58,10 +58,10 @@ jobs:
     - name: install clvm & clvm_tools
       run: |
         . ./venv/bin/activate
-        arch -arm64 git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
+        arch -arm64 git clone https://github.com/Chik-Network/clvm.git --branch=main --single-branch
         arch -arm64 python -m pip install ./clvm
 
-        arch -arm64 git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+        arch -arm64 git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
         arch -arm64 python -m pip install ./clvm_tools
 
     - name: Ensure clvm, clvm_rs, clvm_tools are installed

@@ -3,7 +3,7 @@ name: Build ARM64 wheels on ubuntu-latest
 on:
   push:
     branches:
-      - main
+      - main1
       - dev
     tags:
         - '**'
@@ -20,7 +20,7 @@ jobs:
         os: [[ARM64, Linux]]
 
     steps:
-    - uses: Chia-Network/actions/clean-workspace@main
+    - uses: Chik-Network/actions/clean-workspace@main
 
     - name: Checkout repository
       uses: actions/checkout@v3

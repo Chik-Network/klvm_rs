@@ -4,8 +4,8 @@ use wasm_bindgen::prelude::*;
 
 use crate::lazy_node::LazyNode;
 use clvmr::allocator::Allocator;
-use clvmr::chia_dialect::ChiaDialect;
-use clvmr::chia_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
+use clvmr::chik_dialect::ChikDialect;
+use clvmr::chik_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
 use clvmr::cost::Cost;
 use clvmr::run_program::run_program;
 use clvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
@@ -45,7 +45,7 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
 
     let r = run_program(
         &mut allocator,
-        &ChiaDialect::new(0),
+        &ChikDialect::new(0),
         program,
         args,
         max_cost,
@@ -57,7 +57,7 @@ pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub fn run_chia_program(
+pub fn run_chik_program(
     program: &[u8],
     args: &[u8],
     max_cost: Cost, // Expecting `BigInt` to be passed from JavaScript world
@@ -66,7 +66,7 @@ pub fn run_chia_program(
     let mut allocator = Allocator::new();
     let program = node_from_bytes(&mut allocator, program).unwrap();
     let args = node_from_bytes(&mut allocator, args).unwrap();
-    let dialect = ChiaDialect::new(flag);
+    let dialect = ChikDialect::new(flag);
 
     let r = run_program(&mut allocator, &dialect, program, args, max_cost);
     match r {

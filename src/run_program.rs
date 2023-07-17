@@ -555,7 +555,7 @@ struct RunProgramTest {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
-use crate::chia_dialect::{
+use crate::chik_dialect::{
     ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, ENABLE_SECP_OPS, NO_UNKNOWN_OPS,
 };
 
@@ -1322,7 +1322,7 @@ fn check(res: (NodePtr, &str)) -> NodePtr {
 
 #[test]
 fn test_run_program() {
-    use crate::chia_dialect::ChiaDialect;
+    use crate::chik_dialect::ChikDialect;
     use crate::test_ops::node_eq;
 
     for t in TEST_CASES {
@@ -1332,7 +1332,7 @@ fn test_run_program() {
         let args = check(parse_exp(&mut allocator, t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        let dialect = ChiaDialect::new(t.flags);
+        let dialect = ChikDialect::new(t.flags);
         println!("prg: {}", t.prg);
         match run_program(&mut allocator, &dialect, program, args, t.cost) {
             Ok(Reduction(cost, prg_result)) => {
@@ -1357,7 +1357,7 @@ fn test_run_program() {
 #[cfg(feature = "counters")]
 #[test]
 fn test_counters() {
-    use crate::chia_dialect::ChiaDialect;
+    use crate::chik_dialect::ChikDialect;
 
     let mut a = Allocator::new();
 
@@ -1366,7 +1366,7 @@ fn test_counters() {
     let cost = 15073165;
 
     let (counters, result) =
-        run_program_with_counters(&mut a, &ChiaDialect::new(0), program, args, cost);
+        run_program_with_counters(&mut a, &ChikDialect::new(0), program, args, cost);
 
     assert_eq!(counters.val_stack_usage, 3015);
     assert_eq!(counters.env_stack_usage, 1005);

@@ -3,11 +3,11 @@ from typing import Optional, Tuple, Any, Union
 from unittest import TestCase
 
 from clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
-from clvm_rs.chia_dialect import CHIA_DIALECT
+from clvm_rs.chik_dialect import CHIK_DIALECT
 from clvm_rs.eval_error import EvalError
 from clvm_rs.program import Program
 
-A_KW, C_KW, Q_KW = [getattr(CHIA_DIALECT, _) for _ in "A_KW C_KW Q_KW".split()]
+A_KW, C_KW, Q_KW = [getattr(CHIK_DIALECT, _) for _ in "A_KW C_KW Q_KW".split()]
 
 Program.set_run_unsafe_max_cost(0x7FFFFFFFFFFFFFFF)
 

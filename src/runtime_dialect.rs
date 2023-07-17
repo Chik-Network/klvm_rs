@@ -1,5 +1,5 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::chia_dialect::NO_UNKNOWN_OPS;
+use crate::chik_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;

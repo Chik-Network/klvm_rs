@@ -58,17 +58,17 @@ fn unknown_operator(
     }
 }
 
-pub struct ChiaDialect {
+pub struct ChikDialect {
     flags: u32,
 }
 
-impl ChiaDialect {
-    pub fn new(flags: u32) -> ChiaDialect {
-        ChiaDialect { flags }
+impl ChikDialect {
+    pub fn new(flags: u32) -> ChikDialect {
+        ChikDialect { flags }
     }
 }
 
-impl Dialect for ChiaDialect {
+impl Dialect for ChikDialect {
     fn op(
         &self,
         allocator: &mut Allocator,

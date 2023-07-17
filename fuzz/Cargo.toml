@@ -1,7 +1,7 @@
 [package]
 name = "clvm_rs-fuzz"
 version = "1.0.0"
-authors = ["Arvid Norberg <arvid@chia.net>"]
+authors = ["Arvid Norberg <arvid@chiknetwork.com>"]
 publish = false
 edition = "2021"
 

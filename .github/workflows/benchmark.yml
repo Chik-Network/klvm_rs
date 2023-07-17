@@ -4,7 +4,7 @@ name: Run benchmarks
 on:
   push:
     branches:
-      - main
+      - main1
       - dev
     tags:
         - '**'
@@ -26,7 +26,7 @@ jobs:
       with:
         fetch-depth: 1
 
-    - uses: chia-network/actions/setup-python@main
+    - uses: chik-network/actions/setup-python@main
       name: Install Python 3.9
       with:
         python-version: 3.9
@@ -51,7 +51,7 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+        git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
         maturin develop -m wheel/Cargo.toml --release
@@ -70,7 +70,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+        git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
         maturin develop -m wheel/Cargo.toml --release --features=openssl
@@ -90,7 +90,7 @@ jobs:
       with:
         fetch-depth: 1
 
-    - uses: chia-network/actions/setup-python@main
+    - uses: chik-network/actions/setup-python@main
       name: Install Python 3.9
       with:
         python-version: 3.9
@@ -116,7 +116,7 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
+        git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
         python -m pip install ./clvm_tools
         python -m pip install colorama
         maturin develop -m wheel/Cargo.toml --release --features=openssl

@@ -3,8 +3,8 @@ from typing import Iterator, List, Tuple, Optional, BinaryIO
 
 from .at import at
 from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
-from .chia_dialect import CHIA_DIALECT
-from .clvm_rs import run_serialized_chia_program
+from .chik_dialect import CHIK_DIALECT
+from .clvm_rs import run_serialized_chik_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .curry_and_treehash import CurryTreehasher
@@ -22,7 +22,7 @@ class Program(CLVMStorage):
 
     UNSAFE_MAX_COST: Optional[int] = None
 
-    curry_treehasher: CurryTreehasher = CurryTreehasher(CHIA_DIALECT)
+    curry_treehasher: CurryTreehasher = CurryTreehasher(CHIK_DIALECT)
     _cached_serialization: Optional[bytes]
 
     # serialization/deserialization
@@ -263,7 +263,7 @@ class Program(CLVMStorage):
         prog_bytes = bytes(self)
         args_bytes = bytes(self.to(args))
         try:
-            cost, lazy_node = run_serialized_chia_program(
+            cost, lazy_node = run_serialized_chik_program(
                 prog_bytes, args_bytes, max_cost, flags
             )
             r = self.wrap(lazy_node)
@@ -289,7 +289,7 @@ class Program(CLVMStorage):
     def curry(self, *args: CastableType) -> "Program":
         """
         Given a `MOD` program, cast to `Program` the list of values and
-        bind them to the `MOD`. See also https://docs.chia.net/guides/chialisp-currying
+        bind them to the `MOD`. See also https://docs.chiknetwork.com/guides/chiklisp-currying
 
         Returns a program with the given values bound.
         """

@@ -53,7 +53,7 @@ test_case("Test '(q . 127)' '()'", function(){
     // 100,000,000,000
     const max_cost = BigInt("100000000000");
     const flag = 0;
-    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    const [cost, sexp] = wasm.run_chik_program(prog, arg, max_cost, flag);
     expect_equal(sexp.atom.toString(), "127");
 });
 
@@ -65,7 +65,7 @@ test_case("Test '(+ 1 (q . 3))' '2'", function(){
     // 100,000,000,000
     const max_cost = BigInt("100000000000");
     const flag = 0;
-    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    const [cost, sexp] = wasm.run_chik_program(prog, arg, max_cost, flag);
     expect_equal(sexp.atom.toString(), "5");
 });
 
@@ -77,7 +77,7 @@ test_case("Test '(+ 7 (q . 3))' '(() . (() . 2))'", function(){
     // 100,000,000,000
     const max_cost = BigInt("100000000000");
     const flag = 0;
-    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    const [cost, sexp] = wasm.run_chik_program(prog, arg, max_cost, flag);
     expect_equal(sexp.atom.toString(), "5");
 });
 
@@ -90,7 +90,7 @@ test_case("Test max_cost too low", function(){
     const max_cost = BigInt("1");
     const flag = 0;
     expect_throw(function(){
-        wasm.run_chia_program(prog, arg, max_cost, flag);
+        wasm.run_chik_program(prog, arg, max_cost, flag);
     });
 });
 
@@ -102,7 +102,7 @@ test_case("Test divmod", function(){
     // 100,000,000,000
     const max_cost = BigInt("100000000000");
     const flag = 0;
-    const [cost, sexp] = wasm.run_chia_program(prog, arg, max_cost, flag);
+    const [cost, sexp] = wasm.run_chik_program(prog, arg, max_cost, flag);
     expect_equal(sexp.pair[0].atom.toString(), numsToByteStr([-2]));
     expect_equal(sexp.pair[1].atom.toString(), numsToByteStr([-1]));
 });
@@ -115,7 +115,7 @@ test_case("Test negative div", function(){
     // 100,000,000,000
     const max_cost = BigInt("100000000000");
     expect_throw(function(){
-        wasm.run_chia_program(prog, arg, max_cost, 0);
+        wasm.run_chik_program(prog, arg, max_cost, 0);
     });
 });
 

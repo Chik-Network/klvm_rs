@@ -100,10 +100,10 @@ class Treehasher:
         return hash_stack[0]
 
 
-CHIA_TREE_HASH_ATOM_PREFIX = bytes.fromhex("01")
-CHIA_TREE_HASH_PAIR_PREFIX = bytes.fromhex("02")
-CHIA_TREEHASHER = Treehasher(CHIA_TREE_HASH_ATOM_PREFIX, CHIA_TREE_HASH_PAIR_PREFIX)
+CHIK_TREE_HASH_ATOM_PREFIX = bytes.fromhex("01")
+CHIK_TREE_HASH_PAIR_PREFIX = bytes.fromhex("02")
+CHIK_TREEHASHER = Treehasher(CHIK_TREE_HASH_ATOM_PREFIX, CHIK_TREE_HASH_PAIR_PREFIX)
 
-sha256_treehash = CHIA_TREEHASHER.sha256_treehash
-shatree_atom = CHIA_TREEHASHER.shatree_atom
-shatree_pair = CHIA_TREEHASHER.shatree_pair
+sha256_treehash = CHIK_TREEHASHER.sha256_treehash
+shatree_atom = CHIK_TREEHASHER.shatree_atom
+shatree_pair = CHIK_TREEHASHER.shatree_pair

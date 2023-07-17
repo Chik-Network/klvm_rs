@@ -3,7 +3,7 @@ name: Build npm package
 on:
   push:
     branches:
-      - main
+      - main1
       - dev
     tags:
         - '**'

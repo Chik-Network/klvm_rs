@@ -19,7 +19,7 @@ enum ReadOp {
 
 // these test cases were produced by:
 
-// from chia.types.blockchain_format.program import Program
+// from chik.types.blockchain_format.program import Program
 // a = Program.to(...)
 // print(bytes(a).hex())
 // print(a.get_tree_hash().hex())

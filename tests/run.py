@@ -10,8 +10,8 @@ def run_clvm(fn, env=None):
         env = Program.fromhex(open(env, 'r').read())
     else:
         env = Program.fromhex("ff80")
-    # constants from the main chia blockchain:
-    # https://github.com/Chia-Network/chia-blockchain/blob/main/chia/consensus/default_constants.py
+    # constants from the main chik blockchain:
+    # https://github.com/Chik-Network/chik-blockchain/blob/main/chik/consensus/default_constants.py
     max_cost = 11000000000
     cost_per_byte = 12000
 

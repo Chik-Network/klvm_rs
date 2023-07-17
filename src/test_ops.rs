@@ -361,7 +361,7 @@ struct EvalFTracker {
 }
 
 #[cfg(feature = "pre-eval")]
-use crate::chia_dialect::{ChiaDialect, NO_UNKNOWN_OPS};
+use crate::chik_dialect::{ChikDialect, NO_UNKNOWN_OPS};
 #[cfg(feature = "pre-eval")]
 use crate::run_program::run_program_with_pre_eval;
 #[cfg(feature = "pre-eval")]
@@ -446,7 +446,7 @@ fn test_pre_eval_and_post_eval() {
     let allocator_null = allocator.null();
     let result = run_program_with_pre_eval(
         &mut allocator,
-        &ChiaDialect::new(NO_UNKNOWN_OPS),
+        &ChikDialect::new(NO_UNKNOWN_OPS),
         program,
         allocator_null,
         COST_LIMIT,

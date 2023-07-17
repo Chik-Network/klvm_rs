@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 
 from .at import at
 from .casts import CastableType
-from .chia_dialect import Dialect
+from .chik_dialect import Dialect
 from .clvm_storage import CLVMStorage
 from .tree_hash import shatree_pair, shatree_atom
 
