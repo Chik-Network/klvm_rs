@@ -4,7 +4,7 @@ from typing import Iterator, List, Tuple, Optional, BinaryIO
 from .at import at
 from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
 from .chik_dialect import CHIK_DIALECT
-from .clvm_rs import run_serialized_chik_program
+from .chik_clvm_rs import run_serialized_chik_program
 from .clvm_storage import CLVMStorage
 from .clvm_tree import CLVMTree
 from .curry_and_treehash import CurryTreehasher

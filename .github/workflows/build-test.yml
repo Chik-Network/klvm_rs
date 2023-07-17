@@ -97,7 +97,7 @@ jobs:
         maturin develop --release -m wheel/Cargo.toml
         # the line above also doesn't seem to work
 
-    - name: Install clvm_rs wheel
+    - name: Install chik_clvm_rs wheel
       if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
@@ -225,7 +225,7 @@ jobs:
             components: rustfmt, clippy
 
       - name: build
-        run: cargo build --workspace --exclude clvm_rs-fuzz
+        run: cargo build --workspace --exclude chik_clvm_rs-fuzz
 
       - name: cargo test (default)
         run: cargo test && cargo test --release
@@ -260,8 +260,8 @@ jobs:
           cargo test --release --workspace
           python -m venv venv
           source venv/bin/activate
-          git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
-          pip install ./clvm_tools
+          git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
+          pip install ./chik_clvm_tools
           pip install colorama maturin pytest pytest-cov
           maturin develop --release -m wheel/Cargo.toml --features=openssl
           (cd tests && python generate-programs.py && python run-programs.py) || true

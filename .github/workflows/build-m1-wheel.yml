@@ -43,7 +43,7 @@ jobs:
         arch -arm64 pip install maturin
         arch -arm64 maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
 
-    - name: Install clvm_rs wheel
+    - name: Install chik_clvm_rs wheel
       run: |
         . ./venv/bin/activate
         ls ./target/wheels/
@@ -55,22 +55,22 @@ jobs:
         arch -arm64 python -m pip install pytest
         arch -arm64 python -m pip install blspy
 
-    - name: install clvm & clvm_tools
+    - name: install clvm & chik_clvm_tools
       run: |
         . ./venv/bin/activate
         arch -arm64 git clone https://github.com/Chik-Network/clvm.git --branch=main --single-branch
         arch -arm64 python -m pip install ./clvm
 
-        arch -arm64 git clone https://github.com/Chik-Network/clvm_tools.git --branch=main --single-branch
-        arch -arm64 python -m pip install ./clvm_tools
+        arch -arm64 git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
+        arch -arm64 python -m pip install ./chik_clvm_tools
 
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
+    - name: Ensure clvm, chik_clvm_rs, chik_clvm_tools are installed
       run: |
         . ./venv/bin/activate
         arch -arm64 python -c 'import clvm'
         arch -arm64 python -c 'import clvm; print(clvm.__file__)'
         arch -arm64 python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        arch -arm64 python -c 'import clvm_tools; print(clvm_tools.__file__)'
+        arch -arm64 python -c 'import chik_clvm_tools; print(chik_clvm_tools.__file__)'
 
     - name: Run tests from clvm
       run: |
@@ -78,10 +78,10 @@ jobs:
         cd clvm
         arch -arm64 pytest tests
 
-    - name: Run tests from clvm_tools
+    - name: Run tests from chik_clvm_tools
       run: |
         . ./venv/bin/activate
-        cd clvm_tools
+        cd chik_clvm_tools
         arch -arm64 pytest tests
 
     - name: Run tests from wheel

@@ -259,7 +259,7 @@ def print_tree(tree: Program) -> str:
 
 class ProgramTest(TestCase):
     def test_cast_1(self):
-        # this was a problem in `clvm_tools` and is included
+        # this was a problem in `chik_clvm_tools` and is included
         # to prevent regressions
         program = Program.to(b"foo")
         t1 = program.to([1, program])

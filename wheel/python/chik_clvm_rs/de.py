@@ -7,7 +7,7 @@ deserialize_as_tree: Optional[
 ]
 
 try:
-    from clvm_rs.clvm_rs import deserialize_as_tree
+    from chik_clvm_rs.clvm_rs import deserialize_as_tree
 except ImportError:
     deserialize_as_tree = None
 

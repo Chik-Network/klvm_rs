@@ -13,7 +13,7 @@ cargo install wasm-pack
 Then build with
 
 ```bash
-# Make sure you're at <clvm_rs root>/wasm
+# Make sure you're at <chik_clvm_rs root>/wasm
 wasm-pack build --release --target=nodejs
 ```
 
@@ -24,6 +24,6 @@ Prerequisite:
 - Wasm files built by `wasm-pack` command exist at `<clvm_rs root>/wasm/pkg/`
 
 ```bash
-# Make sure you're at <clvm_rs root>/wasm
+# Make sure you're at <chik_clvm_rs root>/wasm
 node ./tests/index.js
 ```

@@ -3,7 +3,7 @@
 import sys
 import io
 from ir import reader
-from clvm_tools import binutils
+from chik_clvm_tools import binutils
 from clvm.serialize import sexp_from_stream
 from clvm import to_sexp_f
 
