@@ -1,7 +1,7 @@
 #![no_main]
-use clvmr::allocator::Allocator;
-use clvmr::serde::node_from_bytes_backrefs;
-use clvmr::serde::node_to_bytes_backrefs;
+use chik_clvmr::allocator::Allocator;
+use chik_clvmr::serde::node_from_bytes_backrefs;
+use chik_clvmr::serde::node_to_bytes_backrefs;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

@@ -1,4 +1,4 @@
-use clvmr::allocator::{Allocator, NodePtr, SExp};
+use chik_clvmr::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
 
 use js_sys::Array;

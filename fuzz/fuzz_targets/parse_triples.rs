@@ -1,5 +1,5 @@
 #![no_main]
-use clvmr::serde::parse_triples;
+use chik_clvmr::serde::parse_triples;
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
 

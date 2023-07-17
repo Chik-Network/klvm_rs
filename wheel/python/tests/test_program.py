@@ -2,10 +2,10 @@ from typing import Optional, Tuple, Any, Union
 
 from unittest import TestCase
 
-from clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
-from clvm_rs.chik_dialect import CHIK_DIALECT
-from clvm_rs.eval_error import EvalError
-from clvm_rs.program import Program
+from chik_clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
+from chik_clvm_rs.chik_dialect import CHIK_DIALECT
+from chik_clvm_rs.eval_error import EvalError
+from chik_clvm_rs.program import Program
 
 A_KW, C_KW, Q_KW = [getattr(CHIK_DIALECT, _) for _ in "A_KW C_KW Q_KW".split()]
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from clvm_rs import Program
+from chik_clvm_rs import Program
 
 
 def run_clvm(fn, env=None):

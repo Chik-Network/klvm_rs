@@ -7,7 +7,7 @@ There are two approaches to soft-forking in support for new operators:
 2. Assigning meaning to a, previously unknown, operator. Pick an opcode who's
    cost matches the cost you want your operator to have. The cost of unknown
    operators are defined by a formula, defined
-   [here](https://github.com/Chik-Network/clvm_rs/blob/main/src/more_ops.rs#L156-L182).
+   [here](https://github.com/Chik-Network/chik_clvm_rs/blob/main/src/more_ops.rs#L156-L182).
 
 Using approach (2) only works for operators that unconditionally return nil, and
 raise in case of an error. i.e. it can be use for "assert-style" operators that validate

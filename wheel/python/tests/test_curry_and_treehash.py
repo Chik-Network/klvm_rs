@@ -1,8 +1,8 @@
 import pytest
 
-from clvm_rs import Program
-from clvm_rs.chik_dialect import CHIK_DIALECT
-from clvm_rs.curry_and_treehash import CurryTreehasher
+from chik_clvm_rs import Program
+from chik_clvm_rs.chik_dialect import CHIK_DIALECT
+from chik_clvm_rs.curry_and_treehash import CurryTreehasher
 
 CHIK_CURRY_TREEHASHER = CurryTreehasher(CHIK_DIALECT)
 curry_and_treehash = CHIK_CURRY_TREEHASHER.curry_and_treehash

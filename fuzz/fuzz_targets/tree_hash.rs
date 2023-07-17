@@ -1,5 +1,5 @@
 #![no_main]
-use clvmr::serde::tree_hash_from_stream;
+use chik_clvmr::serde::tree_hash_from_stream;
 use libfuzzer_sys::fuzz_target;
 use std::io::Cursor;
 

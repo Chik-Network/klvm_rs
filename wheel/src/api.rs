@@ -2,13 +2,13 @@ use std::io;
 
 use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
-use clvmr::allocator::Allocator;
-use clvmr::chik_dialect::ChikDialect;
-use clvmr::cost::Cost;
-use clvmr::reduction::Response;
-use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
-use clvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+use chik_clvmr::allocator::Allocator;
+use chik_clvmr::chik_dialect::ChikDialect;
+use chik_clvmr::cost::Cost;
+use chik_clvmr::reduction::Response;
+use chik_clvmr::run_program::run_program;
+use chik_clvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
+use chik_clvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -72,7 +72,7 @@ fn deserialize_as_tree(
 }
 
 #[pymodule]
-fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+fn chik_clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_serialized_chik_program, m)?)?;
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;

@@ -6,7 +6,7 @@ import sys
 import os
 import time
 import random
-from clvm_rs import Program
+from chik_clvm_rs import Program
 from colorama import init, Fore, Style
 
 init()

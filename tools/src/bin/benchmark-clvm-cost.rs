@@ -1,7 +1,7 @@
 use clap::Parser;
-use clvmr::allocator::{Allocator, NodePtr};
-use clvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
-use clvmr::run_program::run_program;
+use chik_clvmr::allocator::{Allocator, NodePtr};
+use chik_clvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
+use chik_clvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
 use std::io::{sink, Write};

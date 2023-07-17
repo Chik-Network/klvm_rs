@@ -5,8 +5,8 @@ authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chi
 edition = "2021"
 license = "Apache-2.0"
 description = "Developer tools for the CLVM interpreter"
-homepage = "https://github.com/Chik-Network/clvm_rs/tools/"
-repository = "https://github.com/Chik-Network/clvm_rs/tools/"
+homepage = "https://github.com/Chik-Network/chik_clvm_rs/tools/"
+repository = "https://github.com/Chik-Network/chik_clvm_rs/tools/"
 readme = "README.md"
 
 [profile.release]
@@ -18,7 +18,7 @@ hex = "=0.4.3"
 rand = "0.8.4"
 sha1 = "=0.10.5"
 linreg = "=0.2.0"
-clvmr = { path = ".." }
+chik_clvmr = { path = ".." }
 bls12_381 = { version = "=0.8.0", features = ["experimental"] }
 num-bigint = "0.4.3"
 serde = { version ="1.0.163", features = ["derive"] }

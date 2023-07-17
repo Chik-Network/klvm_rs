@@ -3,12 +3,12 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use crate::lazy_node::LazyNode;
-use clvmr::allocator::Allocator;
-use clvmr::chik_dialect::ChikDialect;
-use clvmr::chik_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
-use clvmr::cost::Cost;
-use clvmr::run_program::run_program;
-use clvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
+use chik_clvmr::allocator::Allocator;
+use chik_clvmr::chik_dialect::ChikDialect;
+use chik_clvmr::chik_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
+use chik_clvmr::cost::Cost;
+use chik_clvmr::run_program::run_program;
+use chik_clvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

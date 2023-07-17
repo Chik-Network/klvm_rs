@@ -1,6 +1,6 @@
 import unittest
 
-from clvm_rs.program import Program
+from chik_clvm_rs.program import Program
 
 
 class castable_to_bytes:
