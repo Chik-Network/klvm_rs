@@ -3,7 +3,7 @@ name: Build rust crate
 on:
   push:
     branches:
-      - main1
+      #- main
       - dev
     tags:
         - '**'

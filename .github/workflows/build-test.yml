@@ -3,7 +3,7 @@ name: Build Mac, Linux, and Windows wheels
 on:
   push:
     branches:
-      - main1
+      #- main
       - dev
     tags:
         - '**'

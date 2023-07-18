@@ -3,7 +3,7 @@ name: Build M1 Wheels
 on:
   push:
     branches:
-      - main1
+      #- main
       - dev
     tags:
         - '**'
