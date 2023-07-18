@@ -1,12 +1,12 @@
-from .clvm_storage import CLVMStorage
+from .klvm_storage import KLVMStorage
 from .de import deserialize_as_tuples
 
 from typing import List, Optional, Tuple, Union
 
 
-class CLVMTree(CLVMStorage):
+class KLVMTree(KLVMStorage):
     """
-    This object conforms with the `CLVMStorage` protocol. It's optimized for
+    This object conforms with the `KLVMStorage` protocol. It's optimized for
     deserialization, and keeps a reference to the serialized blob and to a
     list of tuples of integers, each of which corresponds to a subtree.
 
@@ -31,20 +31,20 @@ class CLVMTree(CLVMStorage):
     `blob[start_offset]` (so the atom data is at `blob[triple[0] +
     triple[2]:triple[1]]`)
 
-    Since each `CLVMTree` subtree keeps a reference to the original
+    Since each `KLVMTree` subtree keeps a reference to the original
     serialized data and the list of tuples, no memory is released until all
     objects in the tree are garbage-collected. This happens pretty naturally
     in well-behaved python code.
     """
 
-    # cached value of lazily-created child `CLVMStorage` objects
+    # cached value of lazily-created child `KLVMStorage` objects
     # created on call to `.pair`
-    _pair: Optional[Tuple["CLVMStorage", "CLVMStorage"]]
+    _pair: Optional[Tuple["KLVMStorage", "KLVMStorage"]]
 
     # the serialized form, which contains the template for all the atoms
     blob: Union[memoryview, bytes]
 
-    # the memoized boundary list for all clvm objects in the tree
+    # the memoized boundary list for all klvm objects in the tree
     # this list is shared by *all* instances of sub-objects of the
     # same tree
     # [int, int, int] => start_offset, end_offset, atom_start_or_pair_rest
@@ -54,14 +54,14 @@ class CLVMTree(CLVMStorage):
     # if pair, children have `index` start_offset+1 and atom_start_or_pair_rest
     int_tuples: List[Tuple[int, int, int]]
 
-    # which of the clvm objects in the tree this instance represents
+    # which of the klvm objects in the tree this instance represents
     index: int  # index into `int_tuples`
 
     # the sha256 tree hashes that are optionally created on deserialization
     tree_hashes: Optional[List[bytes]]
 
     @classmethod
-    def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> "CLVMTree":
+    def from_bytes(cls, blob: bytes, calculate_tree_hash: bool = True) -> "KLVMTree":
         int_tuples, tree_hashes = deserialize_as_tuples(
             blob, 0, calculate_tree_hash=calculate_tree_hash
         )
@@ -88,7 +88,7 @@ class CLVMTree(CLVMStorage):
             self._pair = None
 
     @property
-    def pair(self) -> Optional[Tuple["CLVMStorage", "CLVMStorage"]]:
+    def pair(self) -> Optional[Tuple["KLVMStorage", "KLVMStorage"]]:
         if not hasattr(self, "_pair"):
             tuples, tree_hashes = self.int_tuples, self.tree_hashes
             start, end, right_index = tuples[self.index]

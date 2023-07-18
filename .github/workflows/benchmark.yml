@@ -51,8 +51,8 @@ jobs:
         python -m venv venv
         . .\venv\Scripts\Activate.ps1
         ln -s venv\Scripts\Activate.ps1 activate
-        git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
-        python -m pip install ./chik_clvm_tools
+        git clone https://github.com/Chik-Network/klvm_tools.git --branch=main --single-branch
+        python -m pip install ./klvm_tools
         python -m pip install colorama
         maturin develop -m wheel/Cargo.toml --release
 
@@ -70,8 +70,8 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
-        python -m pip install ./chik_clvm_tools
+        git clone https://github.com/Chik-Network/klvm_tools.git --branch=main --single-branch
+        python -m pip install ./klvm_tools
         python -m pip install colorama
         maturin develop -m wheel/Cargo.toml --release --features=openssl
 
@@ -116,8 +116,8 @@ jobs:
         python -m venv venv
         ln -s venv/bin/activate
         . ./activate
-        git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
-        python -m pip install ./chik_clvm_tools
+        git clone https://github.com/Chik-Network/klvm_tools.git --branch=main --single-branch
+        python -m pip install ./klvm_tools
         python -m pip install colorama
         maturin develop -m wheel/Cargo.toml --release --features=openssl
 

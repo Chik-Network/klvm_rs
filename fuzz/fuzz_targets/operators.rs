@@ -1,22 +1,22 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 
-use chik_clvmr::allocator::{Allocator, NodePtr};
-use chik_clvmr::bls_ops::{
+use klvmr::allocator::{Allocator, NodePtr};
+use klvmr::bls_ops::{
     op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
     op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
     op_bls_pairing_identity, op_bls_verify,
 };
-use chik_clvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
-use chik_clvmr::cost::Cost;
-use chik_clvmr::more_ops::{
+use klvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
+use klvmr::cost::Cost;
+use klvmr::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
     op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
     op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
-use chik_clvmr::reduction::{EvalErr, Response};
-use chik_clvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
-use chik_clvmr::serde::node_from_bytes;
+use klvmr::reduction::{EvalErr, Response};
+use klvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
+use klvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 

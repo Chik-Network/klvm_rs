@@ -1,5 +1,5 @@
 """
-Serialize clvm.
+Serialize klvm.
 
 # decoding:
 # read a byte
@@ -17,16 +17,16 @@ Serialize clvm.
 
 from typing import BinaryIO, Callable, Iterator, List
 
-from .clvm_storage import CLVMStorage
+from .klvm_storage import KLVMStorage
 
 
 MAX_SINGLE_BYTE = 0x7F
 CONS_BOX_MARKER = 0xFF
 
 
-def sexp_to_byte_iterator(sexp: CLVMStorage) -> Iterator[bytes]:
+def sexp_to_byte_iterator(sexp: KLVMStorage) -> Iterator[bytes]:
     """
-    Yields bytes that serialize the given clvm object. Non-recursive
+    Yields bytes that serialize the given klvm object. Non-recursive
     """
     todo_stack = [sexp]
     while todo_stack:
@@ -78,7 +78,7 @@ def size_blob_for_blob(blob: bytes) -> bytes:
 
 def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
     """
-    Yield the serialization for a given blob (as a clvm atom).
+    Yield the serialization for a given blob (as a klvm atom).
     """
     size = len(as_atom)
     if size == 0:
@@ -92,7 +92,7 @@ def atom_to_byte_iterator(as_atom: bytes) -> Iterator[bytes]:
     yield as_atom
 
 
-def sexp_to_stream(sexp: CLVMStorage, f: BinaryIO) -> None:
+def sexp_to_stream(sexp: KLVMStorage, f: BinaryIO) -> None:
     """
     Serialize to a file.
     """
@@ -100,23 +100,23 @@ def sexp_to_stream(sexp: CLVMStorage, f: BinaryIO) -> None:
         f.write(b)
 
 
-def sexp_to_bytes(sexp: CLVMStorage) -> bytes:
+def sexp_to_bytes(sexp: KLVMStorage) -> bytes:
     b = bytearray()
     for _ in sexp_to_byte_iterator(sexp):
         b.extend(_)
     return bytes(b)
 
 
-NEW_PAIR_F = Callable[[CLVMStorage, CLVMStorage], CLVMStorage]
-NEW_ATOM_F = Callable[[bytes], CLVMStorage]
+NEW_PAIR_F = Callable[[KLVMStorage, KLVMStorage], KLVMStorage]
+NEW_ATOM_F = Callable[[bytes], KLVMStorage]
 OP_STACK_F = Callable[
-    [List["OP_STACK_F"], List[CLVMStorage], BinaryIO, NEW_PAIR_F, NEW_ATOM_F], None
+    [List["OP_STACK_F"], List[KLVMStorage], BinaryIO, NEW_PAIR_F, NEW_ATOM_F], None
 ]
 
 
 def _op_read_sexp(
     op_stack: List[OP_STACK_F],
-    val_stack: List[CLVMStorage],
+    val_stack: List[KLVMStorage],
     f: BinaryIO,
     new_pair_f: NEW_PAIR_F,
     new_atom_f: NEW_ATOM_F,
@@ -135,7 +135,7 @@ def _op_read_sexp(
 
 def _op_cons(
     op_stack: List[OP_STACK_F],
-    val_stack: List[CLVMStorage],
+    val_stack: List[KLVMStorage],
     f: BinaryIO,
     new_pair_f: NEW_PAIR_F,
     new_atom_f: NEW_ATOM_F,
@@ -147,9 +147,9 @@ def _op_cons(
 
 def sexp_from_stream(
     f: BinaryIO, new_pair_f: NEW_PAIR_F, new_atom_f: NEW_ATOM_F
-) -> CLVMStorage:
+) -> KLVMStorage:
     op_stack: List[OP_STACK_F] = [_op_read_sexp]
-    val_stack: List[CLVMStorage] = []
+    val_stack: List[KLVMStorage] = []
 
     while op_stack:
         func = op_stack.pop()
@@ -157,7 +157,7 @@ def sexp_from_stream(
     return val_stack.pop()
 
 
-def _atom_from_stream(f: BinaryIO, b: int, new_atom_f: NEW_ATOM_F) -> CLVMStorage:
+def _atom_from_stream(f: BinaryIO, b: int, new_atom_f: NEW_ATOM_F) -> KLVMStorage:
     if b == 0x80:
         return new_atom_f(b"")
     if b <= MAX_SINGLE_BYTE:

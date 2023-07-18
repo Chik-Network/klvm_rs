@@ -1,4 +1,4 @@
-const wasm = require("../pkg/clvm_wasm.js");
+const wasm = require("../pkg/klvm_wasm.js");
 
 function expect_equal(challenge, expected){
     if(challenge !== expected){

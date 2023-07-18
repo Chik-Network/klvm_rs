@@ -3,12 +3,12 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 
 use crate::lazy_node::LazyNode;
-use chik_clvmr::allocator::Allocator;
-use chik_clvmr::chik_dialect::ChikDialect;
-use chik_clvmr::chik_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
-use chik_clvmr::cost::Cost;
-use chik_clvmr::run_program::run_program;
-use chik_clvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
+use klvmr::allocator::Allocator;
+use klvmr::chik_dialect::ChikDialect;
+use klvmr::chik_dialect::NO_UNKNOWN_OPS as _no_unknown_ops;
+use klvmr::cost::Cost;
+use klvmr::run_program::run_program;
+use klvmr::serde::{node_from_bytes, node_to_bytes, serialized_length_from_bytes};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -36,7 +36,7 @@ pub fn serialized_length(program: &[u8]) -> Result<u64, String> {
 }
 
 #[wasm_bindgen]
-pub fn run_clvm(program: &[u8], args: &[u8]) -> Vec<u8> {
+pub fn run_klvm(program: &[u8], args: &[u8]) -> Vec<u8> {
     let max_cost: Cost = 1_000_000_000_000_000;
 
     let mut allocator = Allocator::new();

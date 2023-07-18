@@ -43,11 +43,11 @@ jobs:
         arch -arm64 pip install maturin
         arch -arm64 maturin build -m wheel/Cargo.toml -i python --release --strip --features=openssl
 
-    - name: Install chik_clvm_rs wheel
+    - name: Install klvm_rs wheel
       run: |
         . ./venv/bin/activate
         ls ./target/wheels/
-        arch -arm64 pip install ./target/wheels/chik_clvm_rs*.whl
+        arch -arm64 pip install ./target/wheels/klvm_rs*.whl
 
     - name: Install other wheels
       run: |
@@ -55,33 +55,33 @@ jobs:
         arch -arm64 python -m pip install pytest
         arch -arm64 python -m pip install blspy
 
-    - name: install clvm & chik_clvm_tools
+    - name: install klvm & klvm_tools
       run: |
         . ./venv/bin/activate
-        arch -arm64 git clone https://github.com/Chik-Network/clvm.git --branch=main --single-branch
-        arch -arm64 python -m pip install ./clvm
+        arch -arm64 git clone https://github.com/Chik-Network/klvm.git --branch=main --single-branch
+        arch -arm64 python -m pip install ./klvm
 
-        arch -arm64 git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
-        arch -arm64 python -m pip install ./chik_clvm_tools
+        arch -arm64 git clone https://github.com/Chik-Network/klvm_tools.git --branch=main --single-branch
+        arch -arm64 python -m pip install ./klvm_tools
 
-    - name: Ensure clvm, chik_clvm_rs, chik_clvm_tools are installed
+    - name: Ensure klvm, klvm_rs, klvm_tools are installed
       run: |
         . ./venv/bin/activate
-        arch -arm64 python -c 'import clvm'
-        arch -arm64 python -c 'import clvm; print(clvm.__file__)'
-        arch -arm64 python -c 'import chik_clvm_rs; print(chik_clvm_rs.__file__)'
-        arch -arm64 python -c 'import chik_clvm_tools; print(chik_clvm_tools.__file__)'
+        arch -arm64 python -c 'import klvm'
+        arch -arm64 python -c 'import klvm; print(klvm.__file__)'
+        arch -arm64 python -c 'import klvm_rs; print(klvm_rs.__file__)'
+        arch -arm64 python -c 'import klvm_tools; print(klvm_tools.__file__)'
 
-    - name: Run tests from clvm
+    - name: Run tests from klvm
       run: |
         . ./venv/bin/activate
-        cd clvm
+        cd klvm
         arch -arm64 pytest tests
 
-    - name: Run tests from chik_clvm_tools
+    - name: Run tests from klvm_tools
       run: |
         . ./venv/bin/activate
-        cd chik_clvm_tools
+        cd klvm_tools
         arch -arm64 pytest tests
 
     - name: Run tests from wheel
@@ -89,9 +89,9 @@ jobs:
         . ./venv/bin/activate
         cd wheel/python
         pytest --import-mode append tests
-        # we use `append` because otherwise the `chik_clvm_rs` source is added
+        # we use `append` because otherwise the `klvm_rs` source is added
         # to `sys.path` and it uses that instead of the wheel (and so
-        # ignoring `chik_clvm_rs.so`, which is pretty important)
+        # ignoring `klvm_rs.so`, which is pretty important)
 
     - name: Upload wheels
       uses: actions/upload-artifact@v3

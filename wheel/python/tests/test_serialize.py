@@ -1,8 +1,8 @@
 import io
 import unittest
 
-from chik_clvm_rs.program import Program
-from chik_clvm_rs.ser import atom_to_byte_iterator
+from klvm_rs.program import Program
+from klvm_rs.ser import atom_to_byte_iterator
 
 
 TEXT = b"the quick brown fox jumps over the lazy dogs"
@@ -134,13 +134,13 @@ class SerializeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Program.parse(InfiniteStream(bytes_in))
 
-    def test_repr_clvm_tree(self):
+    def test_repr_klvm_tree(self):
         with self.assertRaises(ValueError):
             Program.fromhex("ff8085")
 
         o = Program.fromhex("ff808185")
-        self.assertEqual(repr(o._unwrapped_pair[0]), "<CLVMTree: 80>")
-        self.assertEqual(repr(o._unwrapped_pair[1]), "<CLVMTree: 8185>")
+        self.assertEqual(repr(o._unwrapped_pair[0]), "<KLVMTree: 80>")
+        self.assertEqual(repr(o._unwrapped_pair[1]), "<KLVMTree: 8185>")
 
     def test_bad_blob(self):
         self.assertRaises(ValueError, lambda: Program.fromhex("ff"))

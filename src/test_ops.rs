@@ -319,7 +319,7 @@ fn test_single_argument_raise_atom() {
     let a1 = allocator.new_atom(&[65]).unwrap();
     let args = allocator.new_pair(a1, allocator.null()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
-    assert_eq!(result, Err(EvalErr(a1, "clvm raise".to_string())));
+    assert_eq!(result, Err(EvalErr(a1, "klvm raise".to_string())));
 }
 
 #[test]
@@ -334,7 +334,7 @@ fn test_single_argument_raise_pair() {
     // ((a1 a2))
     args = allocator.new_pair(args, allocator.null()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
-    assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+    assert_eq!(result, Err(EvalErr(args, "klvm raise".to_string())));
 }
 
 #[test]
@@ -347,7 +347,7 @@ fn test_multi_argument_raise() {
     // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
-    assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+    assert_eq!(result, Err(EvalErr(args, "klvm raise".to_string())));
 }
 
 #[cfg(feature = "pre-eval")]

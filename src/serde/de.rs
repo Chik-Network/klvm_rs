@@ -13,7 +13,7 @@ enum ParseOp {
     Cons,
 }
 
-/// deserialize a clvm node from a `std::io::Cursor`
+/// deserialize a klvm node from a `std::io::Cursor`
 pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io::Result<NodePtr> {
     let mut values: Vec<NodePtr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];

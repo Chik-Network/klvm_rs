@@ -141,12 +141,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "clvm-rs-test-tools"
+name = "klvm-rs-test-tools"
 version = "0.1.0"
 dependencies = [
  "bls12_381",
  "clap",
- "chik_clvmr",
+ "klvmr",
  "group",
  "hex",
  "hex-literal",
@@ -159,33 +159,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "chik_clvm_rs"
+name = "klvm_rs"
 version = "0.2.7"
 dependencies = [
- "chik_clvmr",
+ "klvmr",
  "pyo3",
 ]
 
 [[package]]
-name = "chik_clvm_rs-fuzz"
+name = "klvm_rs-fuzz"
 version = "1.0.0"
 dependencies = [
- "chik_clvmr",
+ "klvmr",
  "libfuzzer-sys",
 ]
 
 [[package]]
-name = "clvm_wasm"
+name = "klvm_wasm"
 version = "0.2.7"
 dependencies = [
- "chik_clvmr",
+ "klvmr",
  "js-sys",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 
 [[package]]
-name = "chik_clvmr"
+name = "klvmr"
 version = "0.2.7"
 dependencies = [
  "bls12_381",

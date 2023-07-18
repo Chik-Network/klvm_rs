@@ -1,6 +1,6 @@
 #![no_main]
-use chik_clvmr::allocator::Allocator;
-use chik_clvmr::serde::node_from_bytes;
+use klvmr::allocator::Allocator;
+use klvmr::serde::node_from_bytes;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

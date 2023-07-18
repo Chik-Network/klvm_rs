@@ -16,7 +16,7 @@ i (1 2) "true" "false" => "true" | 33
 i (1) "true" "false" => "true" | 33
 i () "true" "false" => "false" | 33
 
-; tests ported from clvm
+; tests ported from klvm
 i 100 200 300 => 200 | 33
 i ( ) 200 300 => 300 | 33
 i 1 200 300 => 200 | 33
@@ -48,7 +48,7 @@ r 0 => FAIL
 r ( 1 2 3 ) => ( 2 3 ) | 30
 r ( 1 . 2 ) => 2 | 30
 
-; tests ported from clvm
+; tests ported from klvm
 r ( 100 ) => ( ) | 30
 r ( 100 200 300 ) => ( 200 300 ) | 30
 r ( ) => FAIL
@@ -61,7 +61,7 @@ l 0 => 0 | 19
 l ( 0 . 0 ) => 1 | 19
 l ( 1 . 2 ) => 1 | 19
 
-; tests ported from clvm
+; tests ported from klvm
 l 100 =>  ( ) | 19
 l ( 100 ) => 1 | 19
 l => FAIL

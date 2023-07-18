@@ -93,18 +93,18 @@ jobs:
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
         # TODO: figure this out
-        # this does NOT work: pip install target/wheels/chik_clvm_rs-*.whl
+        # this does NOT work: pip install target/wheels/klvm_rs-*.whl
         maturin develop --release -m wheel/Cargo.toml
         # the line above also doesn't seem to work
 
-    - name: Install chik_clvm_rs wheel
+    - name: Install klvm_rs wheel
       if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
         ls target/wheels/
         # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
         # remove the dot, use the `glob` lib to grab the file from the directory
-        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/chik_clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
+        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/klvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
         echo ${WHEEL_PATH}
         pip install ${WHEEL_PATH}
 
@@ -119,9 +119,9 @@ jobs:
         . ./activate
         cd wheel/python
         pytest --import-mode append tests
-        # we use `append` because otherwise the `chik_clvm_rs` source is added
+        # we use `append` because otherwise the `klvm_rs` source is added
         # to `sys.path` and it uses that instead of the wheel (and so
-        # ignoring `chik_clvm_rs.so`, which is pretty important)
+        # ignoring `klvm_rs.so`, which is pretty important)
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -225,7 +225,7 @@ jobs:
             components: rustfmt, clippy
 
       - name: build
-        run: cargo build --workspace --exclude chik_clvm_rs-fuzz
+        run: cargo build --workspace --exclude klvm_rs-fuzz
 
       - name: cargo test (default)
         run: cargo test && cargo test --release
@@ -254,18 +254,18 @@ jobs:
           export CARGOFLAGS="-j $(nproc)"
           cargo install grcov
           export RUSTFLAGS="-Cinstrument-coverage"
-          export LLVM_PROFILE_FILE=$(pwd)/target/chik_clvm_rs-%p-%m.profraw
+          export LLVM_PROFILE_FILE=$(pwd)/target/klvm_rs-%p-%m.profraw
           export CARGO_TARGET_DIR=$(pwd)/target
           export RUST_TEST_THREADS=$(nproc)
           cargo test --release --workspace
           python -m venv venv
           source venv/bin/activate
-          git clone https://github.com/Chik-Network/chik_clvm_tools.git --branch=main --single-branch
-          pip install ./chik_clvm_tools
+          git clone https://github.com/Chik-Network/klvm_tools.git --branch=main --single-branch
+          pip install ./klvm_tools
           pip install colorama maturin pytest pytest-cov
           maturin develop --release -m wheel/Cargo.toml --features=openssl
           (cd tests && python generate-programs.py && python run-programs.py) || true
-          pytest wheel/python/tests --cov=chik_clvm_rs --cov-report lcov:py_cov.info --cov-branch
+          pytest wheel/python/tests --cov=klvm_rs --cov-report lcov:py_cov.info --cov-branch
           grcov . --binary-path target -s . --branch --ignore-not-existing --ignore='*/.cargo/*' --ignore='target/*' -o pre_rust_cov.info
           python -c 'with open("pre_rust_cov.info") as f: lines = [l for l in f if not (l.startswith("DA:") and int(l.split(",")[1].strip()) >= 2**63)]; open("rust_cov.info", "w").writelines(lines)'
           lcov --add-tracefile rust_cov.info -a py_cov.info -o lcov.info

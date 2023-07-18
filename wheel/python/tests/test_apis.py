@@ -1,6 +1,6 @@
 import unittest
 
-from chik_clvm_rs.program import Program
+from klvm_rs.program import Program
 
 
 class castable_to_bytes:
@@ -143,7 +143,7 @@ class AsPythonTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             Program.to((dummy_class, dummy_class, dummy_class))
 
-    def test_clvm_object_tuple(self):
+    def test_klvm_object_tuple(self):
         o1 = Program.to(b"foo")
         o2 = Program.to(b"bar")
         self.assertEqual(Program.to((o1, o2)), (o1, o2))

@@ -3,9 +3,9 @@
 import sys
 import io
 from ir import reader
-from chik_clvm_tools import binutils
-from clvm.serialize import sexp_from_stream
-from clvm import to_sexp_f
+from klvm_tools import binutils
+from klvm.serialize import sexp_from_stream
+from klvm import to_sexp_f
 
 with open(sys.argv[1], 'rb') as f:
     blob = f.read()

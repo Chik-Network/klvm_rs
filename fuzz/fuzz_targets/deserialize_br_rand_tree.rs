@@ -2,9 +2,9 @@
 
 mod fuzzing_utils;
 
-use chik_clvmr::allocator::Allocator;
-use chik_clvmr::serde::node_from_bytes_backrefs;
-use chik_clvmr::serde::node_to_bytes_backrefs;
+use klvmr::allocator::Allocator;
+use klvmr::serde::node_from_bytes_backrefs;
+use klvmr::serde::node_to_bytes_backrefs;
 use libfuzzer_sys::fuzz_target;
 //use fuzzing_utils;
 

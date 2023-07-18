@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use crate::lazy_node::LazyNode;
-use chik_clvmr::allocator::Allocator;
-use chik_clvmr::reduction::Response;
+use klvmr::allocator::Allocator;
+use klvmr::reduction::Response;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;

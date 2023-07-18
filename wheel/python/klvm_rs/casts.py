@@ -1,10 +1,10 @@
 """
-Some utilities to cast python types to and from clvm.
+Some utilities to cast python types to and from klvm.
 """
 
 from typing import Callable, List, SupportsBytes, Tuple, Union, cast
 
-from .clvm_storage import CLVMStorage, is_clvm_storage
+from .klvm_storage import KLVMStorage, is_klvm_storage
 
 
 AtomCastableType = Union[
@@ -19,7 +19,7 @@ CastableType = Union[
     AtomCastableType,
     List["CastableType"],
     Tuple["CastableType", "CastableType"],
-    CLVMStorage,
+    KLVMStorage,
 ]
 
 
@@ -50,7 +50,7 @@ memview_or_bytes = generate_working_memview_or_bytes()
 
 def int_from_bytes(blob: bytes) -> int:
     """
-    Convert a bytes blob encoded as a clvm int to a python int.
+    Convert a bytes blob encoded as a klvm int to a python int.
     """
     size = len(blob)
     if size == 0:
@@ -60,7 +60,7 @@ def int_from_bytes(blob: bytes) -> int:
 
 def int_to_bytes(v: int) -> bytes:
     """
-    Convert a python int to a blob that encodes as this integer in clvm.
+    Convert a python int to a blob that encodes as this integer in klvm.
     """
     if v == 0:
         return b""
@@ -90,13 +90,13 @@ def to_atom_type(v: AtomCastableType) -> bytes:
     raise ValueError("can't cast %s (%s) to bytes" % (type(v), v))
 
 
-def to_clvm_object(
+def to_klvm_object(
     castable: CastableType,
-    to_atom_f: Callable[[bytes], CLVMStorage],
-    to_pair_f: Callable[[CLVMStorage, CLVMStorage], CLVMStorage],
-) -> CLVMStorage:
+    to_atom_f: Callable[[bytes], KLVMStorage],
+    to_pair_f: Callable[[KLVMStorage, KLVMStorage], KLVMStorage],
+) -> KLVMStorage:
     """
-    Convert a python object to clvm object.
+    Convert a python object to klvm object.
 
     This works on nested tuples and lists of potentially unlimited depth.
     It is non-recursive, so nesting depth is not limited by the call stack.
@@ -109,7 +109,7 @@ def to_clvm_object(
     infinite depth.
     """
     to_convert: List[CastableType] = [castable]
-    did_convert: List[CLVMStorage] = []
+    did_convert: List[KLVMStorage] = []
     ops: List[int] = [0]
 
     # operations:
@@ -123,19 +123,19 @@ def to_clvm_object(
         # convert value
         if op == 0:
             v = to_convert.pop()
-            if is_clvm_storage(v):
-                v = cast(CLVMStorage, v)
+            if is_klvm_storage(v):
+                v = cast(KLVMStorage, v)
                 did_convert.append(v)
                 continue
             if isinstance(v, tuple):
                 if len(v) != 2:
                     raise ValueError("can't cast tuple of size %d" % len(v))
                 left, right = v
-                ll_right = is_clvm_storage(right)
-                ll_left = is_clvm_storage(left)
+                ll_right = is_klvm_storage(right)
+                ll_left = is_klvm_storage(left)
                 if ll_right and ll_left:
-                    left = cast(CLVMStorage, left)
-                    right = cast(CLVMStorage, right)
+                    left = cast(KLVMStorage, left)
+                    right = cast(KLVMStorage, right)
                     did_convert.append(to_pair_f(left, right))
                 else:
                     ops.append(1)  # cons

@@ -7,7 +7,7 @@ There are two approaches to soft-forking in support for new operators:
 2. Assigning meaning to a, previously unknown, operator. Pick an opcode who's
    cost matches the cost you want your operator to have. The cost of unknown
    operators are defined by a formula, defined
-   [here](https://github.com/Chik-Network/chik_clvm_rs/blob/main/src/more_ops.rs#L156-L182).
+   [here](https://github.com/Chik-Network/klvm_rs/blob/main/src/more_ops.rs#L156-L182).
 
 Using approach (2) only works for operators that unconditionally return nil, and
 raise in case of an error. i.e. it can be use for "assert-style" operators that validate
@@ -23,7 +23,7 @@ Follow this checklist when adding operators:
 * Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`
 * Include the new operators and their signatures in `tools/src/bin/generate-fuzz-corpus.rs`.
   Make sure to run this and fuzz for some time before landing the PR.
-* extend the benchmark-clvm-cost.rs to include benchmarks for the new operator,
+* extend the benchmark-klvm-cost.rs to include benchmarks for the new operator,
   to establish its cost.
 * The opcode decoding and dispatching happens in `src/ChikDialect.rs`
 * Add a new flag (in `src/chik_dialect.rs`) that controls whether the

@@ -15,7 +15,7 @@ enum ParseOp {
     Cons,
 }
 
-/// deserialize a clvm node from a `std::io::Cursor`
+/// deserialize a klvm node from a `std::io::Cursor`
 pub fn node_from_stream_backrefs(
     allocator: &mut Allocator,
     f: &mut Cursor<&[u8]>,

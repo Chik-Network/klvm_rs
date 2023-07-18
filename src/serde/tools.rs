@@ -68,7 +68,7 @@ enum ParseOp {
     Cons,
 }
 
-// computes the tree-hash of a CLVM structure in serialized form
+// computes the tree-hash of a KLVM structure in serialized form
 pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
     let mut values: Vec<[u8; 32]> = Vec::new();
     let mut ops = vec![ParseOp::SExp];

@@ -2,11 +2,11 @@ from __future__ import annotations
 from typing import Iterator, List, Tuple, Optional, BinaryIO
 
 from .at import at
-from .casts import CastableType, to_clvm_object, int_from_bytes, int_to_bytes
+from .casts import CastableType, to_klvm_object, int_from_bytes, int_to_bytes
 from .chik_dialect import CHIK_DIALECT
-from .chik_clvm_rs import run_serialized_chik_program
-from .clvm_storage import CLVMStorage
-from .clvm_tree import CLVMTree
+from .klvm_rs import run_serialized_chik_program
+from .klvm_storage import KLVMStorage
+from .klvm_tree import KLVMTree
 from .curry_and_treehash import CurryTreehasher
 from .eval_error import EvalError
 from .replace import replace
@@ -15,9 +15,9 @@ from .tree_hash import sha256_treehash
 
 
 
-class Program(CLVMStorage):
+class Program(KLVMStorage):
     """
-    A wrapper around `CLVMStorage` providing many convenience functions.
+    A wrapper around `KLVMStorage` providing many convenience functions.
     """
 
     UNSAFE_MAX_COST: Optional[int] = None
@@ -45,7 +45,7 @@ class Program(CLVMStorage):
     def from_bytes_with_cursor(
         cls, blob: bytes, cursor: int, calculate_tree_hash: bool = True
     ) -> Tuple[Program, int]:
-        tree = CLVMTree.from_bytes(
+        tree = KLVMTree.from_bytes(
             blob[cursor:], calculate_tree_hash=calculate_tree_hash
         )
         obj = cls.wrap(tree)
@@ -99,10 +99,10 @@ class Program(CLVMStorage):
 
     @classmethod
     def to(cls, v: CastableType) -> Program:
-        return cls.wrap(to_clvm_object(v, cls.new_atom, cls.new_pair))
+        return cls.wrap(to_klvm_object(v, cls.new_atom, cls.new_pair))
 
     @classmethod
-    def wrap(cls, v: CLVMStorage) -> Program:
+    def wrap(cls, v: KLVMStorage) -> Program:
         if isinstance(v, Program):
             return v
         o = cls()
@@ -125,7 +125,7 @@ class Program(CLVMStorage):
         return o
 
     @classmethod
-    def new_pair(cls, left: CLVMStorage, right: CLVMStorage) -> Program:
+    def new_pair(cls, left: KLVMStorage, right: KLVMStorage) -> Program:
         o = cls()
         o.atom = None
         o._pair = None
@@ -180,7 +180,7 @@ class Program(CLVMStorage):
 
     def list_len(self) -> int:
         c = 0
-        v: CLVMStorage = self
+        v: KLVMStorage = self
         while v.pair is not None:
             v = v.pair[1]
             c += 1
@@ -243,7 +243,7 @@ class Program(CLVMStorage):
 
         This is a convenience method intended for use in the wallet or
         command-line hacks where it would be easier to morph elements
-        of an existing clvm object tree than to rebuild one from scratch.
+        of an existing klvm object tree than to rebuild one from scratch.
 
         Note that `Program` objects are immutable. This function returns a
         new object; the original is left as-is.
@@ -324,7 +324,7 @@ class Program(CLVMStorage):
         ```
 
         This looks useless to the unitiated, but sometimes you'll need a puzzle
-        hash where you don't actually know the contents of a clvm subtree -- just its
+        hash where you don't actually know the contents of a klvm subtree -- just its
         hash. This lets you calculate the puzzle hash with hidden information.
         """
         curry_treehasher = self.curry_treehasher

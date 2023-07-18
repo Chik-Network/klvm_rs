@@ -8,11 +8,11 @@ except ImportError:
     Protocol = cast(_SpecialForm, object)
 
 
-class CLVMStorage(Protocol):
+class KLVMStorage(Protocol):
     atom: Optional[bytes]
 
     @property
-    def pair(self) -> Optional[Tuple["CLVMStorage", "CLVMStorage"]]:
+    def pair(self) -> Optional[Tuple["KLVMStorage", "KLVMStorage"]]:
         ...
 
     # optional fields used to speed implementations:
@@ -22,5 +22,5 @@ class CLVMStorage(Protocol):
     #      to speed up serialization
 
 
-def is_clvm_storage(obj):
+def is_klvm_storage(obj):
     return hasattr(obj, "atom") and hasattr(obj, "pair")

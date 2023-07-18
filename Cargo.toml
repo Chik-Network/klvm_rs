@@ -2,22 +2,22 @@
 members = ["fuzz", "tools", "wasm", "wheel"]
 
 [package]
-name = "chik_clvmr"
+name = "klvmr"
 version = "0.2.7"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2021"
 license = "Apache-2.0"
-description = "Implementation of `clvm` for Chik Network's cryptocurrency"
-homepage = "https://github.com/Chik-Network/chik_clvm_rs/"
-repository = "https://github.com/Chik-Network/chik_clvm_rs/"
+description = "Implementation of `klvm` for Chik Network's cryptocurrency"
+homepage = "https://github.com/Chik-Network/klvm_rs/"
+repository = "https://github.com/Chik-Network/klvm_rs/"
 readme = "README.md"
 
 [lib]
-name = "chik_clvmr"
+name = "klvmr"
 crate-type = ["rlib"]
 
 [features]
-# when enabling the "counters" features, the CLVM interpreter is instrumented to
+# when enabling the "counters" features, the KLVM interpreter is instrumented to
 # collect counters about the programs it executes
 counters = []
 

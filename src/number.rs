@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 pub type Number = BigInt;
 
 // This low-level conversion function is meant to be used by the Allocator, for
-// logic interacting with the CLVM heap/allocator, use new_number() and number()
+// logic interacting with the KLVM heap/allocator, use new_number() and number()
 // instead.
 pub fn node_from_number(allocator: &mut Allocator, item: &Number) -> Result<NodePtr, EvalErr> {
     let bytes: Vec<u8> = item.to_signed_bytes_be();
@@ -22,7 +22,7 @@ pub fn node_from_number(allocator: &mut Allocator, item: &Number) -> Result<Node
 }
 
 // This low-level conversion function is meant to be used by the Allocator, for
-// logic interacting with the CLVM heap/allocator, use new_number() and number()
+// logic interacting with the KLVM heap/allocator, use new_number() and number()
 // instead.
 pub fn number_from_u8(v: &[u8]) -> Number {
     let len = v.len();

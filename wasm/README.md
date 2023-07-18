@@ -1,4 +1,4 @@
-The `chik_clvm_rs` package has JavaScript bindings for the rust implementation of clvm in wasm.  
+The `klvm_rs` package has JavaScript bindings for the rust implementation of klvm in wasm.  
 This project is very immature, and only some test API is available for the moment. Pull requests are welcome.  
 
 Build
@@ -13,7 +13,7 @@ cargo install wasm-pack
 Then build with
 
 ```bash
-# Make sure you're at <chik_clvm_rs root>/wasm
+# Make sure you're at <klvm_rs root>/wasm
 wasm-pack build --release --target=nodejs
 ```
 
@@ -21,9 +21,9 @@ Test
 -----
 Prerequisite:
 - NodeJS >= 16
-- Wasm files built by `wasm-pack` command exist at `<chik_clvm_rs root>/wasm/pkg/`
+- Wasm files built by `wasm-pack` command exist at `<klvm_rs root>/wasm/pkg/`
 
 ```bash
-# Make sure you're at <chik_clvm_rs root>/wasm
+# Make sure you're at <klvm_rs root>/wasm
 node ./tests/index.js
 ```

@@ -24,7 +24,7 @@ impl Write for ShaWrapper {
 }
 
 /// This data structure is used with `parse_triples`, which returns a triple of
-/// integer values for each clvm object in a tree. It's a port of python code.
+/// integer values for each klvm object in a tree. It's a port of python code.
 ///
 /// The deserializer iterates through the blob and caches a triple of
 /// integers for each subtree: the first two integers represent the
@@ -102,10 +102,10 @@ fn skip_or_sha_bytes<R: Read>(
     }
 }
 
-/// parse a serialized clvm object tree to an array of `ParsedTriple` objects
+/// parse a serialized klvm object tree to an array of `ParsedTriple` objects
 
 /// This alternative mechanism of deserialization generates an array of
-/// references to each clvm object. A reference contains three values:
+/// references to each klvm object. A reference contains three values:
 /// a start offset within the blob, an end offset, and a third value that
 /// is either: an atom offset (relative to the start offset) where the atom
 /// data starts (and continues to the end offset); or an index in the array

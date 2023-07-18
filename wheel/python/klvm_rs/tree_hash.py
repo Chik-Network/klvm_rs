@@ -1,6 +1,6 @@
 """
 This is an implementation of `sha256_treehash`, used to calculate
-puzzle hashes in clvm.
+puzzle hashes in klvm.
 
 This implementation goes to great pains to be non-recursive so we don't
 have to worry about blowing out the python stack.
@@ -9,10 +9,10 @@ have to worry about blowing out the python stack.
 from hashlib import sha256
 from typing import Callable, List, Tuple, cast
 
-from .clvm_storage import CLVMStorage
+from .klvm_storage import KLVMStorage
 
 
-OP_STACK_F = Callable[[List[CLVMStorage], List[bytes], List["OP_STACK_F"]], None]
+OP_STACK_F = Callable[[List[KLVMStorage], List[bytes], List["OP_STACK_F"]], None]
 
 
 class Treehasher:
@@ -47,9 +47,9 @@ class Treehasher:
         s.update(right_hash)
         return s.digest()
 
-    def sha256_treehash(self, clvm_storage: CLVMStorage) -> bytes:
+    def sha256_treehash(self, klvm_storage: KLVMStorage) -> bytes:
         def handle_obj(
-            obj_stack: List[CLVMStorage],
+            obj_stack: List[KLVMStorage],
             hash_stack: List[bytes],
             op_stack: List[OP_STACK_F],
         ) -> None:
@@ -67,7 +67,7 @@ class Treehasher:
                 except AttributeError:
                     pass
             else:
-                pair = cast(Tuple[CLVMStorage, CLVMStorage], obj.pair)
+                pair = cast(Tuple[KLVMStorage, KLVMStorage], obj.pair)
                 p0, p1 = pair
                 obj_stack.append(obj)
                 obj_stack.append(p0)
@@ -77,7 +77,7 @@ class Treehasher:
                 op_stack.append(handle_obj)
 
         def handle_pair(
-            obj_stack: List[CLVMStorage],
+            obj_stack: List[KLVMStorage],
             hash_stack: List[bytes],
             op_stack: List[OP_STACK_F],
         ) -> None:
@@ -91,7 +91,7 @@ class Treehasher:
             except AttributeError:
                 pass
 
-        obj_stack: List[CLVMStorage] = [clvm_storage]
+        obj_stack: List[KLVMStorage] = [klvm_storage]
         op_stack: List[OP_STACK_F] = [handle_obj]
         hash_stack: List[bytes] = []
         while len(op_stack) > 0:

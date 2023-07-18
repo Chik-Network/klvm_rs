@@ -1,5 +1,5 @@
 [package]
-name = "chik_clvm_rs-fuzz"
+name = "klvm_rs-fuzz"
 version = "1.0.0"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>"]
 publish = false
@@ -11,7 +11,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4.6"
 
-[dependencies.chik_clvmr]
+[dependencies.klvmr]
 path = ".."
 default-features = false
 

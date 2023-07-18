@@ -1,9 +1,9 @@
 /// `ObjectCache` provides a way to calculate and cache values for each node
-/// in a clvm object tree. It can be used to calculate the sha256 tree hash
+/// in a klvm object tree. It can be used to calculate the sha256 tree hash
 /// for an object and save the hash for all the child objects for building
 /// usage tables, for example.
 ///
-/// It also allows a function that's defined recursively on a clvm tree to
+/// It also allows a function that's defined recursively on a klvm tree to
 /// have a non-recursive implementation (as it keeps a stack of uncached
 /// objects locally).
 use std::convert::TryInto;

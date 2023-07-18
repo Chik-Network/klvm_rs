@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 from .at import at
 from .casts import CastableType
 from .chik_dialect import Dialect
-from .clvm_storage import CLVMStorage
+from .klvm_storage import KLVMStorage
 from .tree_hash import shatree_pair, shatree_atom
 
 
@@ -85,14 +85,14 @@ class CurryTreehasher:
         """
         return shatree_pair(self.q_kw_treehash, mod_hash)
 
-    def curry(self, mod: CLVMStorage, *args: CastableType) -> CastableType:
+    def curry(self, mod: KLVMStorage, *args: CastableType) -> CastableType:
         """
         Curry a mod template with the given args, returning a new function.
 
         We iterate through args in reverse building the code to create
-        a clvm list.
+        a klvm list.
 
-        Given arguments to a function addressable by the '1' reference in clvm
+        Given arguments to a function addressable by the '1' reference in klvm
 
         `fixed_args = 1`
 
@@ -112,8 +112,8 @@ class CurryTreehasher:
         return [self.dialect.A_KW, (self.dialect.Q_KW, mod), fixed_args]
 
     def uncurry(
-        self, sexp: CLVMStorage
-    ) -> Tuple[CLVMStorage, Optional[List[CLVMStorage]]]:
+        self, sexp: KLVMStorage
+    ) -> Tuple[KLVMStorage, Optional[List[KLVMStorage]]]:
         """
         uncurry the given program
 

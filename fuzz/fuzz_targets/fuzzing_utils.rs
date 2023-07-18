@@ -1,5 +1,5 @@
-use chik_clvmr::allocator::Allocator;
-use chik_clvmr::allocator::NodePtr;
+use klvmr::allocator::Allocator;
+use klvmr::allocator::NodePtr;
 
 pub struct BitCursor<'a> {
     data: &'a [u8],

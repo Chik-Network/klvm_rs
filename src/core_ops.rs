@@ -63,7 +63,7 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
         input
     };
 
-    err(throw_value, "clvm raise")
+    err(throw_value, "klvm raise")
 }
 
 fn ensure_atom(a: &Allocator, n: NodePtr, op: &str) -> Result<(), EvalErr> {

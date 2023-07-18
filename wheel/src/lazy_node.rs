@@ -1,4 +1,4 @@
-use chik_clvmr::allocator::{Allocator, NodePtr, SExp};
+use klvmr::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
 
 use pyo3::prelude::*;

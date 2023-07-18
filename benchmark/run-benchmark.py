@@ -6,7 +6,7 @@ import sys
 import os
 import time
 import random
-from chik_clvm_rs import Program
+from klvm_rs import Program
 from colorama import init, Fore, Style
 
 init()
@@ -57,7 +57,7 @@ def random_key(size=32):
     return ret
 
 def p2_delegated_or_hidden_puzzle():
-    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.clvm
+    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.klvm
     # parameters:
     # (synthetic_public_key original_public_key delegated_puzzle solution)
 
@@ -152,7 +152,7 @@ if need_update('benchmark/matrix-multiply.env', self_mtime):
         f.write(')')
 
 print('compiling...')
-for fn in glob.glob('benchmark/*.clvm'):
+for fn in glob.glob('benchmark/*.klvm'):
 
     hex_name = fn[:-4] + 'hex'
     if not os.path.exists(hex_name) or os.path.getmtime(hex_name) < os.path.getmtime(fn):

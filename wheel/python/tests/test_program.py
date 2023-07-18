@@ -2,10 +2,10 @@ from typing import Optional, Tuple, Any, Union
 
 from unittest import TestCase
 
-from chik_clvm_rs.clvm_storage import CLVMStorage, is_clvm_storage
-from chik_clvm_rs.chik_dialect import CHIK_DIALECT
-from chik_clvm_rs.eval_error import EvalError
-from chik_clvm_rs.program import Program
+from klvm_rs.klvm_storage import KLVMStorage, is_klvm_storage
+from klvm_rs.chik_dialect import CHIK_DIALECT
+from klvm_rs.eval_error import EvalError
+from klvm_rs.program import Program
 
 A_KW, C_KW, Q_KW = [getattr(CHIK_DIALECT, _) for _ in "A_KW C_KW Q_KW".split()]
 
@@ -80,7 +80,7 @@ class TestProgram(TestCase):
             p.run(p)
         except EvalError as ee:
             err = ee
-        self.assertEqual(err.args, ("clvm raise",))
+        self.assertEqual(err.args, ("klvm raise",))
         self.assertEqual(err._sexp, ["foo", "bar"])
 
     def test_hash(self):
@@ -172,9 +172,9 @@ def test_uncurry_args_garbage():
     assert plus.uncurry() == (plus, None)
 
 
-class SimpleStorage(CLVMStorage):
+class SimpleStorage(KLVMStorage):
     """
-    A simple implementation of `CLVMStorage`.
+    A simple implementation of `KLVMStorage`.
     """
 
     atom: Optional[bytes]
@@ -184,7 +184,7 @@ class SimpleStorage(CLVMStorage):
         self._pair = pair
 
     @property
-    def pair(self) -> Optional[Tuple["CLVMStorage", "CLVMStorage"]]:
+    def pair(self) -> Optional[Tuple["KLVMStorage", "KLVMStorage"]]:
         return self._pair
 
 
@@ -216,8 +216,8 @@ def validate_program(program):
         if v.pair:
             assert isinstance(v.pair, tuple)
             v1, v2 = v.pair
-            assert is_clvm_storage(v1)
-            assert is_clvm_storage(v2)
+            assert is_klvm_storage(v1)
+            assert is_klvm_storage(v2)
             s1, s2 = v.pair
             validate_stack.append(s1)
             validate_stack.append(s2)
@@ -259,14 +259,14 @@ def print_tree(tree: Program) -> str:
 
 class ProgramTest(TestCase):
     def test_cast_1(self):
-        # this was a problem in `chik_clvm_tools` and is included
+        # this was a problem in `klvm_tools` and is included
         # to prevent regressions
         program = Program.to(b"foo")
         t1 = program.to([1, program])
         validate_program(t1)
 
     def test_wrap_program(self):
-        # it's a bit of a layer violation that CLVMStorage unwraps Program, but we
+        # it's a bit of a layer violation that KLVMStorage unwraps Program, but we
         # rely on that in a fair number of places for now. We should probably
         # work towards phasing that out
         o = Program.to(Program.to(1))
@@ -274,9 +274,9 @@ class ProgramTest(TestCase):
 
     def test_arbitrary_underlying_tree(self) -> None:
         # Program provides a view on top of a tree of arbitrary types, as long as
-        # those types implement the CLVMStorage protocol. This is an example of
+        # those types implement the KLVMStorage protocol. This is an example of
         # a tree that's generated
-        class GeneratedTree(CLVMStorage):
+        class GeneratedTree(KLVMStorage):
             depth: int = 4
             val: int = 0
 
@@ -313,7 +313,7 @@ class ProgramTest(TestCase):
         # this is just for `coverage`
         assert print_leaves(Program.to(0)) == "() "
 
-    def test_looks_like_clvm_object(self):
+    def test_looks_like_klvm_object(self):
         # this function can't look at the values, that would cause a cascade of
         # eager evaluation/conversion
         class dummy:
@@ -323,15 +323,15 @@ class ProgramTest(TestCase):
         obj.atom = None
         obj.pair = None
         print(dir(obj))
-        assert is_clvm_storage(obj)
+        assert is_klvm_storage(obj)
 
         obj = dummy()
         obj.pair = None
-        assert not is_clvm_storage(obj)
+        assert not is_klvm_storage(obj)
 
         obj = dummy()
         obj.atom = None
-        assert not is_clvm_storage(obj)
+        assert not is_klvm_storage(obj)
 
     def test_list_conversions(self):
         a = Program.to([1, 2, 3])

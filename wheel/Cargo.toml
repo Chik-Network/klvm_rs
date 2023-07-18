@@ -1,22 +1,22 @@
 [package]
-name = "chik_clvm_rs"
+name = "klvm_rs"
 version = "0.2.7"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2021"
 license = "Apache-2.0"
-description = "Implementation of `clvm` for Chik Network's cryptocurrency"
-homepage = "https://github.com/Chik-Network/chik_clvm_rs/"
-repository = "https://github.com/Chik-Network/chik_clvm_rs/"
+description = "Implementation of `klvm` for Chik Network's cryptocurrency"
+homepage = "https://github.com/Chik-Network/klvm_rs/"
+repository = "https://github.com/Chik-Network/klvm_rs/"
 readme = "README.md"
 
 [lib]
-name = "chik_clvm_rs"
+name = "klvm_rs"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-chik_clvmr = { path = ".." }
+klvmr = { path = ".." }
 pyo3 = { version = "=0.18.3", features = ["abi3-py37", "extension-module"] }
 
 [features]
-openssl = ["chik_clvmr/openssl"]
+openssl = ["klvmr/openssl"]

@@ -1,4 +1,4 @@
-/// When deserializing a clvm object, a stack of deserialized child objects
+/// When deserializing a klvm object, a stack of deserialized child objects
 /// is created, which can be used with back-references. A `ReadCacheLookup` keeps
 /// track of the state of this stack and all child objects under each root
 /// node in the stack so that we can quickly determine if a relevant
@@ -184,7 +184,7 @@ impl ReadCacheLookup {
 }
 
 /// Turn a list of 0/1 values (for "left/right") into `Vec<u8>` representing
-/// the corresponding clvm path in the standard way.
+/// the corresponding klvm path in the standard way.
 /// `[]` => `1`
 /// If `A` => `v` then `[A] + [0]` => `v * 2` and `[A] + [1]` => `v * 2 + 1`
 /// Then the integer is turned into the minimal-length array of `u8` representing

@@ -2,10 +2,10 @@ from __future__ import annotations
 from typing import Dict
 
 from .casts import CastableType
-from .clvm_storage import CLVMStorage
+from .klvm_storage import KLVMStorage
 
 
-def replace(program: CLVMStorage, **kwargs: CastableType) -> CastableType:
+def replace(program: KLVMStorage, **kwargs: CastableType) -> CastableType:
     # if `kwargs == {}` then `return program` unchanged
     if len(kwargs) == 0:
         return program

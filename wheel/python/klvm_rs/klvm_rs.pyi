@@ -1,10 +1,10 @@
 from typing import List, Optional, Tuple
 
-from .clvm_storage import CLVMStorage
+from .klvm_storage import KLVMStorage
 
 def run_serialized_chik_program(
     program: bytes, environment: bytes, max_cost: int, flags: int
-) -> Tuple[int, CLVMStorage]: ...
+) -> Tuple[int, KLVMStorage]: ...
 def deserialize_as_tree(
     blob: bytes, calculate_tree_hashes: bool
 ) -> Tuple[List[Tuple[int, int, int]], Optional[List[bytes]]]: ...
@@ -15,8 +15,8 @@ NO_UNKNOWN_OPS: int
 LIMIT_HEAP: int
 MEMPOOL_MODE: int
 
-class LazyNode(CLVMStorage):
+class LazyNode(KLVMStorage):
     atom: Optional[bytes]
 
     @property
-    def pair(self) -> Optional[Tuple[CLVMStorage, CLVMStorage]]: ...
+    def pair(self) -> Optional[Tuple[KLVMStorage, KLVMStorage]]: ...

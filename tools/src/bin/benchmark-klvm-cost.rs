@@ -1,7 +1,7 @@
 use clap::Parser;
-use chik_clvmr::allocator::{Allocator, NodePtr};
-use chik_clvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
-use chik_clvmr::run_program::run_program;
+use klvmr::allocator::{Allocator, NodePtr};
+use klvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
+use klvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
 use std::io::{sink, Write};
@@ -285,7 +285,7 @@ struct Operator {
     flags: u32,
 }
 
-/// Measure CPU cost of CLVM operators to aid in determining their cost
+/// Measure CPU cost of KLVM operators to aid in determining their cost
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {

@@ -1198,7 +1198,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1513,
-        err: "clvm raise",
+        err: "klvm raise",
     },
     // also test the opposite. This program is the same as above but it raises
     // if the coin ID is a mismatch
