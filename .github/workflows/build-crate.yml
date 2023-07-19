@@ -23,11 +23,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up rusts
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable-2023-05-31
-        components: rustfmt, clippy
+#    - name: Set up rusts
+#      uses: actions-rs/toolchain@v1
+#      with:
+#        toolchain: stable
+#        components: rustfmt, clippy
 
 #    - name: Set up rust (stable)
 #      uses: actions-rs/toolchain@v1
