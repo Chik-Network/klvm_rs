@@ -29,11 +29,11 @@ jobs:
         toolchain: stable
         components: rustfmt, clippy
 
-    - name: Set up rust (stable)
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        components: rustfmt, clippy
+#    - name: Set up rust (stable)
+#      uses: actions-rs/toolchain@v1
+#      with:
+#        toolchain: stable
+#        components: rustfmt, clippy
 
     - name: fmt (stable)
       run: cargo +stable fmt -- --files-with-diff --check
