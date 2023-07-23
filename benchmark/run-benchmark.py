@@ -6,9 +6,9 @@ import sys
 import os
 import time
 import random
-from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
-from clvm.operators import OP_REWRITE
-from clvm_rs import run_chia_program
+from klvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
+from klvm.operators import OP_REWRITE
+from klvm_rs import run_chik_program
 from colorama import init, Fore, Style
 
 init()
@@ -59,7 +59,7 @@ def random_key(size=32):
     return ret
 
 def p2_delegated_or_hidden_puzzle():
-    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.clvm
+    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.klvm
     # parameters:
     # (synthetic_public_key original_public_key delegated_puzzle solution)
 
@@ -154,7 +154,7 @@ if need_update('benchmark/matrix-multiply.env', self_mtime):
         f.write(')')
 
 print('compiling...')
-for fn in glob.glob('benchmark/*.clvm'):
+for fn in glob.glob('benchmark/*.klvm'):
 
     hex_name = fn[:-4] + 'hex'
     if not os.path.exists(hex_name) or os.path.getmtime(hex_name) < os.path.getmtime(fn):
@@ -213,7 +213,7 @@ for n in range(5):
             env_data = bytes.fromhex(open(env_fn, 'r').read())
 
             time_start = time.perf_counter()
-            cost, result = run_chia_program(
+            cost, result = run_chik_program(
                 program_data,
                 env_data,
                 max_cost,

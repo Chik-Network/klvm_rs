@@ -61,28 +61,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "clvm_wasm"
-version = "0.1.23"
-dependencies = [
- "clvmr",
- "wasm-bindgen",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "clvmr"
-version = "0.1.23"
-dependencies = [
- "bls12_381",
- "hex",
- "lazy_static",
- "num-bigint",
- "num-integer",
- "num-traits",
- "sha2",
-]
-
-[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -173,6 +151,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce791b7ca6638aae45be056e068fc756d871eb3b3b10b8efa62d1c9cec616752"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "klvm_wasm"
+version = "0.1.24"
+dependencies = [
+ "klvmr",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+]
+
+[[package]]
+name = "klvmr"
+version = "0.1.24"
+dependencies = [
+ "bls12_381",
+ "hex",
+ "lazy_static",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "sha2",
 ]
 
 [[package]]

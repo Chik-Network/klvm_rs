@@ -91,18 +91,18 @@ jobs:
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
         # TODO: figure this out
-        # this does NOT work: pip install wheel/target/wheels/clvm_rs-*.whl
+        # this does NOT work: pip install wheel/target/wheels/klvm_rs-*.whl
         maturin develop --release -m wheel/Cargo.toml
         # the line above also doesn't seem to work
 
-    - name: Install clvm_rs wheel
+    - name: Install klvm_rs wheel
       if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
         ls wheel/target/wheels/
         # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
         # remove the dot, use the `glob` lib to grab the file from the directory
-        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("wheel/target/wheels/clvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
+        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("wheel/target/wheels/klvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
         echo ${WHEEL_PATH}
         pip install ${WHEEL_PATH}
 
@@ -112,34 +112,34 @@ jobs:
         python -m pip install pytest
         python -m pip install blspy
 
-    - name: install clvm & clvm_tools
+    - name: install klvm & klvm_tools
       run: |
         . ./activate
-        git clone https://github.com/Chia-Network/clvm.git --branch=main --single-branch
-        python -m pip install ./clvm
+        git clone https://github.com/Chik-Network/klvm.git --branch=main --single-branch
+        python -m pip install ./klvm
 
-        git clone https://github.com/Chia-Network/clvm_tools.git --branch=main --single-branch
-        python -m pip install ./clvm_tools
+        git clone https://github.com/Chik-Network/klvm_tools.git --branch=main --single-branch
+        python -m pip install ./klvm_tools
 
-    - name: Ensure clvm, clvm_rs, clvm_tools are installed
+    - name: Ensure klvm, klvm_rs, klvm_tools are installed
       run: |
         . ./activate
-        python -c 'import clvm'
-        python -c 'import clvm; print(clvm.__file__)'
-        python -c 'import clvm_rs; print(clvm_rs.__file__)'
-        python -c 'import clvm_tools; print(clvm_tools.__file__)'
+        python -c 'import klvm'
+        python -c 'import klvm; print(klvm.__file__)'
+        python -c 'import klvm_rs; print(klvm_rs.__file__)'
+        python -c 'import klvm_tools; print(klvm_tools.__file__)'
 
-    - name: Run tests from clvm
+    - name: Run tests from klvm
       run: |
         . ./activate
-        cd clvm
+        cd klvm
         pytest tests
 
-    - name: Run tests from clvm_tools
+    - name: Run tests from klvm_tools
       continue-on-error: true
       run: |
         . ./activate
-        cd clvm_tools
+        cd klvm_tools
         pytest tests
 
     - name: Upload artifacts
@@ -159,7 +159,7 @@ jobs:
         if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
         echo ::set-output name=HAS_SECRET::${HAS_SECRET}
       env:
-        SECRET: "${{ secrets.test_pypi_password }}"
+        SECRET: "${{ secrets.pypi_password }}"
 
     - name: publish (PyPi)
       if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET

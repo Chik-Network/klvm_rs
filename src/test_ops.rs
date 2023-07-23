@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc; // Allows move closures to tear off a reference and move it. // Allows interior mutability inside Fn traits.
 
 use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::chia_dialect::{ChiaDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
+use crate::chik_dialect::{ChikDialect, NO_NEG_DIV, NO_UNKNOWN_OPS};
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
 use crate::more_ops::{
@@ -37,7 +37,7 @@ lognot 0x333333 => 0xcccccc | 370
 lognot 0x00 0x00 => FAIL
 lognot => FAIL
 
-; tests ported from clvm
+; tests ported from klvm
 lognot 12 => -13 | 344
 lognot -1 => ( ) | 334
 lognot 0 => -1 | 341
@@ -64,7 +64,7 @@ logior 0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80 => 0xff | 2246
 logior 0x01 0x01 => 0x01 | 644
 logior 0x01 0x01 0x01 => 0x01 | 911
 
-; tests ported from clvm
+; tests ported from klvm
 logior 12 5 => 13 | 644
 logior 12 5 7 => 15 | 911
 logior 0x00000000000000000000000000000000000000000000000000000000000000000000000000000c 0x000005 0x000000000000000000000000000000000000000000000000000000000000000007 => 15 | 1127
@@ -87,7 +87,7 @@ logxor 0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80 => 0xff | 2246
 logxor 0x01 0x01 => 0 | 634
 logxor 0x01 0x01 0x01 => 0x01 | 911
 
-; tests ported from clvm
+; tests ported from klvm
 logxor 12 5 => 9 | 644
 logxor 12 5 7 => 14 | 911
 logxor 0x0000000000000000000000000000000000000000000000000000000000000000000000000c 0x000005 0x00000000000000000000000000000000000000000000000000000000000000000007 => 14 | 1124
@@ -112,7 +112,7 @@ logand 0x01 0x02 0x04 0x08 0x10 0x20 0x40 0x80 => 0 | 2236
 logand 0x01 0x01 => 0x01 | 644
 logand 0x01 0x01 0x01 => 0x01 | 911
 
-; tests ported from clvm
+; tests ported from klvm
 logand 13 12 => 12 | 644
 logand 13 12 4 => 4 | 911
 logand => -1 | 110
@@ -276,7 +276,7 @@ lsh 0xcc -256 => 0 | 280
 lsh 0xcc 0x0000000001 => FAIL
 lsh 0xcc "foo" => FAIL
 
-; tests ported from clvm
+; tests ported from klvm
 lsh 7 1 => 14 | 293
 lsh 7 100 => 0x70000000000000000000000000 | 449
 lsh -7 100 => 0x0f90000000000000000000000000 | 462
@@ -358,7 +358,7 @@ x "error_message" => FAIL
 > "foo" "boo" => 1 | 510
 > "bar" "foo" => 0 | 510
 
-; tests ported from clvm
+; tests ported from klvm
 > 10 => FAIL
 > 11 10 => 1 | 502
 > 9 10 => ( ) | 502
@@ -385,7 +385,7 @@ x "error_message" => FAIL
 >s "bar" "foo" => 0 | 123
 >s "foo" "foo" => 0 | 123
 
-; tests ported from clvm
+; tests ported from klvm
 >s 0x001004 ( 100 200 ) => FAIL
 >s 0x00 "" => 1 | 118
 >s 0x01 0x00 => 1 | 119
@@ -502,7 +502,7 @@ x "error_message" => FAIL
 - 0 4294967296 => -4294967296 | 804
 - 0 18446744073709551616 => -18446744073709551616 | 856
 
-; tests ported from clvm
+; tests ported from klvm
 - 7 1 => 6 | 755
 - 1 => 1 | 432
 - ( ) => ( ) | 419
@@ -545,7 +545,7 @@ x "error_message" => FAIL
 * 65536 -65536 -65536 => 281474976710656 | 2016
 * 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 10000000000000000000000000000000000 => 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 | 14198
 
-; tests ported from clvm
+; tests ported from klvm
 * 7 2 => 14 | 999
 * 1 => 1 | 102
 * ( ) => ( ) | 92
@@ -728,7 +728,7 @@ strlen "foobar" => 6 | 189
 ; this is just 0xff
 strlen -1 => 1 | 184
 
-; tests ported from clvm
+; tests ported from klvm
 strlen "foo-bar" => 7 | 190
 strlen ( "foo-bar" ) => FAIL
 strlen ( ) => 0 | 173
@@ -796,7 +796,7 @@ substr "foobar" 0xffffffff => FAIL
 substr "foobar" 0x00ffffffff => FAIL
 substr "foobar" 0x7fffffff => FAIL
 
-; test cases ported from clvm
+; test cases ported from klvm
 substr "abcdefghijkl" 14 => FAIL
 substr "abcdefghijkl" 0 => "abcdefghijkl" | 1
 substr "abcdefghijkl" -1 => FAIL
@@ -830,7 +830,7 @@ i "" "true" "false" => "false" | 33
 i 10 "true" "false" => "true" | 33
 i -1 "true" "false" => "true" | 33
 
-; tests ported from clvm
+; tests ported from klvm
 i 100 200 300 => 200 | 33
 i ( ) 200 300 => 300 | 33
 i 1 200 300 => 200 | 33
@@ -872,7 +872,7 @@ r 0 => FAIL
 r ( 1 2 3 ) => ( 2 3 ) | 30
 r ( 1 . 2 ) => 2 | 30
 
-; tests ported from clvm
+; tests ported from klvm
 r ( 100 ) => ( ) | 30
 r ( 100 200 300 ) => ( 200 300 ) | 30
 r ( ) => FAIL
@@ -885,7 +885,7 @@ l 0 => 0 | 19
 l ( 0 . 0 ) => 1 | 19
 l ( 1 . 2 ) => 1 | 19
 
-; tests ported from clvm
+; tests ported from klvm
 l 100 =>  ( ) | 19
 l ( 100 ) => 1 | 19
 l => FAIL
@@ -1173,7 +1173,7 @@ fn test_single_argument_raise_atom() {
     let a1 = allocator.new_atom(&[65]).unwrap();
     let args = allocator.new_pair(a1, allocator.null()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
-    assert_eq!(result, Err(EvalErr(a1, "clvm raise".to_string())));
+    assert_eq!(result, Err(EvalErr(a1, "klvm raise".to_string())));
 }
 
 #[test]
@@ -1188,7 +1188,7 @@ fn test_single_argument_raise_pair() {
     // ((a1 a2))
     args = allocator.new_pair(args, allocator.null()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
-    assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+    assert_eq!(result, Err(EvalErr(args, "klvm raise".to_string())));
 }
 
 #[test]
@@ -1201,7 +1201,7 @@ fn test_multi_argument_raise() {
     // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
-    assert_eq!(result, Err(EvalErr(args, "clvm raise".to_string())));
+    assert_eq!(result, Err(EvalErr(args, "klvm raise".to_string())));
 }
 
 const COST_LIMIT: u64 = 1000000000;
@@ -1297,7 +1297,7 @@ fn test_pre_eval_and_post_eval() {
     let allocator_null = allocator.null();
     let result = run_program(
         &mut allocator,
-        &ChiaDialect::new(NO_NEG_DIV | NO_UNKNOWN_OPS),
+        &ChikDialect::new(NO_NEG_DIV | NO_UNKNOWN_OPS),
         program,
         allocator_null,
         COST_LIMIT,

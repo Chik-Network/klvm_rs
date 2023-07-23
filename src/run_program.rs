@@ -751,7 +751,7 @@ fn check(res: (NodePtr, &str)) -> NodePtr {
 
 #[test]
 fn test_run_program() {
-    use crate::chia_dialect::ChiaDialect;
+    use crate::chik_dialect::ChikDialect;
     use crate::test_ops::node_eq;
 
     for t in TEST_CASES {
@@ -761,7 +761,7 @@ fn test_run_program() {
         let args = check(parse_exp(&mut allocator, &t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
-        let dialect = ChiaDialect::new(0);
+        let dialect = ChikDialect::new(0);
         println!("prg: {}", t.prg);
         match run_program(&mut allocator, &dialect, program, args, t.cost, None) {
             Ok(Reduction(cost, prg_result)) => {

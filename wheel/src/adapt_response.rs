@@ -1,6 +1,6 @@
 use crate::lazy_node::LazyNode;
-use clvmr::allocator::Allocator;
-use clvmr::reduction::{EvalErr, Response};
+use klvmr::allocator::Allocator;
+use klvmr::reduction::{EvalErr, Response};
 
 use std::rc::Rc;
 
@@ -16,7 +16,7 @@ pub fn eval_err_to_pyresult<T>(py: Python, eval_err: EvalErr, allocator: Allocat
     Err(py
         .run(
             "
-from clvm.EvalError import EvalError
+from klvm.EvalError import EvalError
 raise EvalError(msg, node)",
             None,
             Some(ctx),

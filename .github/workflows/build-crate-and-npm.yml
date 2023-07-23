@@ -50,7 +50,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: crate
-        path: ./target/package/clvm_rs-*.crate
+        path: ./target/package/klvm_rs-*.crate
 
     - name: install wasm-pack
       run: cargo install wasm-pack
@@ -62,7 +62,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: npm-pkg
-        path: ./wasm/pkg/clvm_rs-*.tgz
+        path: ./wasm/pkg/klvm_rs-*.tgz
 
     # this has not been tested, so probably needs to be debugged next time a tag is created
     - name: publish to crates.io if tagged

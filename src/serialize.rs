@@ -132,7 +132,7 @@ enum ParseOp {
     Cons,
 }
 
-/// deserialize a clvm node from a `std::io::Cursor`
+/// deserialize a klvm node from a `std::io::Cursor`
 pub fn node_from_stream(allocator: &mut Allocator, f: &mut Cursor<&[u8]>) -> io::Result<NodePtr> {
     let mut values: Vec<NodePtr> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
@@ -248,7 +248,7 @@ fn hash_pair(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     ctx.finalize().into()
 }
 
-// computes the tree-hash of a CLVM structure in serialized form
+// computes the tree-hash of a KLVM structure in serialized form
 pub fn tree_hash_from_stream(f: &mut Cursor<&[u8]>) -> io::Result<[u8; 32]> {
     let mut values: Vec<[u8; 32]> = Vec::new();
     let mut ops = vec![ParseOp::SExp];
@@ -358,7 +358,7 @@ use hex::FromHex;
 
 // these test cases were produced by:
 
-// from chia.types.blockchain_format.program import Program
+// from chik.types.blockchain_format.program import Program
 // a = Program.to(...)
 // print(bytes(a).hex())
 // print(a.get_tree_hash().hex())

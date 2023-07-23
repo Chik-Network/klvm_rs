@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use crate::adapt_response::adapt_response_to_py;
 use crate::lazy_node::LazyNode;
-use clvmr::allocator::Allocator;
-use clvmr::chia_dialect::{ChiaDialect, LIMIT_HEAP};
-use clvmr::cost::Cost;
-use clvmr::reduction::Response;
-use clvmr::run_program::run_program;
-use clvmr::runtime_dialect::RuntimeDialect;
-use clvmr::serialize::{node_from_bytes, serialized_length_from_bytes};
+use klvmr::allocator::Allocator;
+use klvmr::chik_dialect::{ChikDialect, LIMIT_HEAP};
+use klvmr::cost::Cost;
+use klvmr::reduction::Response;
+use klvmr::run_program::run_program;
+use klvmr::runtime_dialect::RuntimeDialect;
+use klvmr::serialize::{node_from_bytes, serialized_length_from_bytes};
 
 use pyo3::prelude::*;
 
@@ -72,7 +72,7 @@ pub fn deserialize_and_run_program2(
 }
 
 #[pyfunction]
-pub fn run_chia_program(
+pub fn run_chik_program(
     py: Python,
     program: &[u8],
     args: &[u8],
@@ -87,7 +87,7 @@ pub fn run_chia_program(
     let r: Response = (|| -> PyResult<Response> {
         let program = node_from_bytes(&mut allocator, program)?;
         let args = node_from_bytes(&mut allocator, args)?;
-        let dialect = ChiaDialect::new(flags);
+        let dialect = ChikDialect::new(flags);
 
         Ok(py
             .allow_threads(|| run_program(&mut allocator, &dialect, program, args, max_cost, None)))

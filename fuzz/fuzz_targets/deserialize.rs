@@ -1,6 +1,6 @@
 #![no_main]
-use clvmr::allocator::Allocator;
-use clvmr::serialize::node_from_bytes;
+use klvmr::allocator::Allocator;
+use klvmr::serialize::node_from_bytes;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

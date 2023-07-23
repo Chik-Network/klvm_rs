@@ -78,7 +78,7 @@ pub fn op_raise(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response 
         })
         .unwrap_or(args);
 
-    throw_value.err("clvm raise")
+    throw_value.err("klvm raise")
 }
 
 pub fn op_eq(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {

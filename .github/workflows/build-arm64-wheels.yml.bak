@@ -20,7 +20,7 @@ jobs:
         os: [[ARM64, Linux]]
 
     steps:
-    - uses: Chia-Network/actions/clean-workspace@main
+    - uses: Chik-Network/actions/clean-workspace@main
 
     - name: Checkout repository
       uses: actions/checkout@v2
