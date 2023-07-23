@@ -1,6 +1,6 @@
 import hashlib
 from ir import reader
-from klvm_tools import binutils
+from clvm_tools import binutils
 
 OPERATORS = [
  ("q", 1),

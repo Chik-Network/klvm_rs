@@ -6,7 +6,9 @@ import sys
 import os
 import time
 import random
-from klvm_rs import Program
+from clvm import KEYWORD_FROM_ATOM, KEYWORD_TO_ATOM
+from clvm.operators import OP_REWRITE
+from clvm_rs import run_chia_program
 from colorama import init, Fore, Style
 
 init()
@@ -57,7 +59,7 @@ def random_key(size=32):
     return ret
 
 def p2_delegated_or_hidden_puzzle():
-    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.klvm
+    # src/wallet/puzzles/p2_delegated_puzzle_or_hidden_puzzle.clvm
     # parameters:
     # (synthetic_public_key original_public_key delegated_puzzle solution)
 
@@ -152,7 +154,7 @@ if need_update('benchmark/matrix-multiply.env', self_mtime):
         f.write(')')
 
 print('compiling...')
-for fn in glob.glob('benchmark/*.klvm'):
+for fn in glob.glob('benchmark/*.clvm'):
 
     hex_name = fn[:-4] + 'hex'
     if not os.path.exists(hex_name) or os.path.getmtime(hex_name) < os.path.getmtime(fn):
@@ -182,6 +184,12 @@ if len(procs) > 0:
 test_runs = {}
 test_costs = {}
 
+native_opcode_names_by_opcode = dict(
+    ("op_%s" % OP_REWRITE.get(k, k), op)
+    for op, k in KEYWORD_FROM_ATOM.items()
+    if k not in "qa."
+)
+
 print('benchmarking...')
 for n in range(5):
     if "-v" in sys.argv:
@@ -201,12 +209,13 @@ for n in range(5):
         else:
             if "-v" in sys.argv:
                 print(fn)
-            program = Program.fromhex(open(fn, 'r').read())
-            env = Program.fromhex(open(env_fn, 'r').read())
+            program_data = bytes.fromhex(open(fn, 'r').read())
+            env_data = bytes.fromhex(open(env_fn, 'r').read())
 
             time_start = time.perf_counter()
-            cost, result = program.run_with_cost(
-                env,
+            cost, result = run_chia_program(
+                program_data,
+                env_data,
                 max_cost,
                 flags,
             )

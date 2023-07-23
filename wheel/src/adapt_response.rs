@@ -1,29 +1,39 @@
+use crate::lazy_node::LazyNode;
+use clvmr::allocator::Allocator;
+use clvmr::reduction::{EvalErr, Response};
+
 use std::rc::Rc;
 
-use crate::lazy_node::LazyNode;
-use klvmr::allocator::Allocator;
-use klvmr::reduction::Response;
-
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::PyDict;
 
-pub fn adapt_response(
+pub fn eval_err_to_pyresult<T>(py: Python, eval_err: EvalErr, allocator: Allocator) -> PyResult<T> {
+    let node = LazyNode::new(Rc::new(allocator), eval_err.0);
+    let msg = eval_err.1;
+    let ctx: &PyDict = PyDict::new(py);
+    ctx.set_item("msg", msg)?;
+    ctx.set_item("node", node)?;
+    Err(py
+        .run(
+            "
+from clvm.EvalError import EvalError
+raise EvalError(msg, node)",
+            None,
+            Some(ctx),
+        )
+        .unwrap_err())
+}
+
+pub fn adapt_response_to_py(
     py: Python,
     allocator: Allocator,
-    response: Response,
+    r: Response,
 ) -> PyResult<(u64, LazyNode)> {
-    match response {
+    match r {
         Ok(reduction) => {
             let val = LazyNode::new(Rc::new(allocator), reduction.1);
             Ok((reduction.0, val))
         }
-        Err(eval_err) => {
-            let sexp = LazyNode::new(Rc::new(allocator), eval_err.0).to_object(py);
-            let msg = eval_err.1.to_object(py);
-            let tuple = PyTuple::new(py, [msg, sexp]);
-            let value_error: PyErr = PyValueError::new_err(tuple.to_object(py));
-            Err(value_error)
-        }
+        Err(eval_err) => eval_err_to_pyresult(py, eval_err, allocator),
     }
 }

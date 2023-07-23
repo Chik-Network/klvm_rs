@@ -1,7 +1,7 @@
 use crate::allocator::{Allocator, NodePtr};
-use crate::chik_dialect::NO_UNKNOWN_OPS;
+use crate::chia_dialect::NO_UNKNOWN_OPS;
 use crate::cost::Cost;
-use crate::dialect::{Dialect, OperatorSet};
+use crate::dialect::Dialect;
 use crate::err_utils::err;
 use crate::f_table::{f_lookup_for_hashmap, FLookup};
 use crate::more_ops::op_unknown;
@@ -12,7 +12,6 @@ pub struct RuntimeDialect {
     f_lookup: FLookup,
     quote_kw: Vec<u8>,
     apply_kw: Vec<u8>,
-    softfork_kw: Vec<u8>,
     flags: u32,
 }
 
@@ -27,7 +26,6 @@ impl RuntimeDialect {
             f_lookup: f_lookup_for_hashmap(op_map),
             quote_kw,
             apply_kw,
-            softfork_kw: vec![36], // softfork opcode
             flags,
         }
     }
@@ -40,7 +38,6 @@ impl Dialect for RuntimeDialect {
         o: NodePtr,
         argument_list: NodePtr,
         max_cost: Cost,
-        _extensions: OperatorSet,
     ) -> Response {
         let b = &allocator.atom(o);
         if b.len() == 1 {
@@ -63,15 +60,7 @@ impl Dialect for RuntimeDialect {
         &self.apply_kw
     }
 
-    fn softfork_kw(&self) -> &[u8] {
-        &self.softfork_kw
-    }
-
-    fn softfork_extension(&self, _ext: u32) -> OperatorSet {
-        OperatorSet::Default
-    }
-
-    fn allow_unknown_ops(&self) -> bool {
-        (self.flags & NO_UNKNOWN_OPS) == 0
+    fn val_stack_limit(&self) -> usize {
+        usize::MAX
     }
 }

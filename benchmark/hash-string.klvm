@@ -1,5 +1,0 @@
-;(mod (strs)
-;    (a sha256 strs)
-;)
-
-(a (q 11) 2)

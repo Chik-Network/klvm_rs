@@ -1,4 +1,4 @@
-use klvmr::allocator::{Allocator, NodePtr, SExp};
+use clvmr::allocator::{Allocator, NodePtr, SExp};
 use std::rc::Rc;
 
 use pyo3::prelude::*;
@@ -37,7 +37,7 @@ impl LazyNode {
     #[getter(atom)]
     pub fn atom(&self, py: Python) -> Option<PyObject> {
         match &self.allocator.sexp(self.node) {
-            SExp::Atom() => Some(PyBytes::new(py, self.allocator.atom(self.node)).into()),
+            SExp::Atom(atom) => Some(PyBytes::new(py, self.allocator.buf(atom)).into()),
             _ => None,
         }
     }

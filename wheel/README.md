@@ -1,4 +1,4 @@
-The `klvm_rs` wheel has python bindings for the rust implementation of klvm.
+The `clvm_rs` wheel has python bindings for the rust implementation of clvm.
 
 Build
 -----
@@ -9,7 +9,7 @@ Use `maturin` to build the python interface. First, install into current virtual
 $ pip install maturin
 ```
 
-While in the `wheel` directory, build `klvm_rs` into the current virtualenv with
+While in the `wheel` directory, build `clvm_rs` into the current virtualenv with
 
 ```
 $ maturin develop --release

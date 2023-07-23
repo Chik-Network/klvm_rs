@@ -1,21 +1,20 @@
 [package]
-name = "klvm_wasm"
-version = "0.2.8"
+name = "clvm_wasm"
+version = "0.1.24"
 authors = ["Richard Kiss <him@richardkiss.com>"]
-edition = "2021"
+edition = "2018"
 license = "Apache-2.0"
-description = "Implementation of `klvm` for Chik Network's cryptocurrency"
-homepage = "https://github.com/Chik-Network/klvm_rs/"
-repository = "https://github.com/Chik-Network/klvm_rs/"
+description = "Implementation of `clvm` for Chia Network's cryptocurrency"
+homepage = "https://github.com/Chia-Network/clvm_rs/"
+repository = "https://github.com/Chia-Network/clvm_rs/"
 readme = "README.md"
 
 [lib]
-name = "klvm_wasm"
+name = "clvm_wasm"
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-klvmr = { path = "..", features = [] }
-wasm-bindgen = "=0.2.87"
-wasm-bindgen-test = "=0.3.34"
-js-sys = "0.3.61"
+clvmr = { path = "..", features = [] }
+wasm-bindgen = "=0.2.75"
+wasm-bindgen-test = "=0.3.25"

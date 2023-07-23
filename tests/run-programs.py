@@ -6,7 +6,7 @@ import time
 import sys
 import platform
 from colorama import init, Fore, Style
-from run import run_klvm
+from run import run_clvm
 
 init()
 ret = 0
@@ -14,14 +14,14 @@ ret = 0
 for fn in glob.glob('programs/large-atom-*.hex.invalid'):
 
     try:
-        run_klvm(fn)
+        run_clvm(fn)
         ret = 1
         print("FAILED: expected parse failure")
     except Exception as e:
         print("expected failure: %s" % e)
 
 
-for fn in glob.glob('programs/*.klvm'):
+for fn in glob.glob('programs/*.clvm'):
 
     hexname = fn[:-4] + 'hex'
     with open(hexname, 'w+') as out:
@@ -82,12 +82,12 @@ for hexname in sorted(glob.glob('programs/*.hex')):
 
         if size > 2300:
             ret += 1
-            print(Fore.RED + '\nTEST FAILURE: Max memory use exceeded (limit: 2300 MB)\n' + Style.RESET_ALL)
+            print(Fore.RED + '\nTEST FAILURE: Max memory use exceeded\n' + Style.RESET_ALL)
 
     # cost 10923314721 roughly corresponds to 11 seconds
     if end - start > 11:
         ret += 1
-        print(Fore.RED + '\nTEST FAILURE: Time exceeded: %f (limit: 11)\n' % (end - start) + Style.RESET_ALL)
+        print(Fore.RED + '\nTEST FAILURE: Time exceeded: %f\n' % (end - start) + Style.RESET_ALL)
 
 if ret:
     print(Fore.RED + f'\n   There were {ret} failures!\n' + Style.RESET_ALL)

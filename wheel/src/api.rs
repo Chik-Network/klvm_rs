@@ -1,86 +1,26 @@
-use std::io;
-
-use super::lazy_node::LazyNode;
-use crate::adapt_response::adapt_response;
-use klvmr::allocator::Allocator;
-use klvmr::chik_dialect::ChikDialect;
-use klvmr::cost::Cost;
-use klvmr::reduction::Response;
-use klvmr::run_program::run_program;
-use klvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
-use klvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
 
-#[pyfunction]
-pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
-    Ok(serialized_length_from_bytes(program)?)
-}
+use super::lazy_node::LazyNode;
+use super::run_program::{
+    __pyo3_get_function_deserialize_and_run_program2, __pyo3_get_function_run_chia_program,
+    __pyo3_get_function_serialized_length,
+};
+use clvmr::chia_dialect::{NO_NEG_DIV, NO_UNKNOWN_OPS, LIMIT_HEAP};
 
-#[pyfunction]
-pub fn run_serialized_chik_program(
-    py: Python,
-    program: &[u8],
-    args: &[u8],
-    max_cost: Cost,
-    flags: u32,
-) -> PyResult<(u64, LazyNode)> {
-    let mut allocator = if flags & LIMIT_HEAP != 0 {
-        Allocator::new_limited(500000000, 62500000, 62500000)
-    } else {
-        Allocator::new()
-    };
-
-    let r: Response = (|| -> PyResult<Response> {
-        let program = node_from_bytes(&mut allocator, program)?;
-        let args = node_from_bytes(&mut allocator, args)?;
-        let dialect = ChikDialect::new(flags);
-
-        Ok(py.allow_threads(|| run_program(&mut allocator, &dialect, program, args, max_cost)))
-    })()?;
-    adapt_response(py, allocator, r)
-}
-
-fn tuple_for_parsed_triple(py: Python<'_>, p: &ParsedTriple) -> PyObject {
-    let tuple = match p {
-        ParsedTriple::Atom {
-            start,
-            end,
-            atom_offset,
-        } => PyTuple::new(py, [*start, *end, *atom_offset as u64]),
-        ParsedTriple::Pair {
-            start,
-            end,
-            right_index,
-        } => PyTuple::new(py, [*start, *end, *right_index as u64]),
-    };
-    tuple.into_py(py)
-}
-
-#[pyfunction]
-fn deserialize_as_tree(
-    py: Python,
-    blob: &[u8],
-    calculate_tree_hashes: bool,
-) -> PyResult<(Vec<PyObject>, Option<Vec<PyObject>>)> {
-    let mut cursor = io::Cursor::new(blob);
-    let (r, tree_hashes) = parse_triples(&mut cursor, calculate_tree_hashes)?;
-    let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
-    let s = tree_hashes.map(|ths| ths.iter().map(|b| PyBytes::new(py, b).into()).collect());
-    Ok((r, s))
-}
+pub const MEMPOOL_MODE: u32 = NO_NEG_DIV | NO_UNKNOWN_OPS | LIMIT_HEAP;
 
 #[pymodule]
-fn klvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(run_serialized_chik_program, m)?)?;
-    m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
-
+fn clvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(deserialize_and_run_program2, m)?)?;
+    m.add_function(wrap_pyfunction!(run_chia_program, m)?)?;
+    m.add("NO_NEG_DIV", NO_NEG_DIV)?;
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
     m.add_class::<LazyNode>()?;
+
+    m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
 
     Ok(())
 }
