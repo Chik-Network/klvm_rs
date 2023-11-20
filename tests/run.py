@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
-from klvm_rs import Program
+from klvm_rs.klvm_rs import run_serialized_chik_program
 
 
 def run_klvm(fn, env=None):
 
-    program = Program.fromhex(open(fn, 'r').read())
+    program = bytes.fromhex(open(fn, 'r').read())
     if env is not None:
-        env = Program.fromhex(open(env, 'r').read())
+        env = bytes.fromhex(open(env, 'r').read())
     else:
-        env = Program.fromhex("ff80")
+        env = bytes.fromhex("ff80")
     # constants from the main chik blockchain:
     # https://github.com/Chik-Network/chik-blockchain/blob/main/chik/consensus/default_constants.py
     max_cost = 11000000000
     cost_per_byte = 12000
 
-    max_cost -= (len(bytes(program)) + len(bytes(env))) * cost_per_byte
-    return program.run_with_cost(
+    max_cost -= (len(program) + len(env)) * cost_per_byte
+    return run_serialized_chik_program(
+        program,
         env,
         max_cost,
         0,

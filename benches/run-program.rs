@@ -1,7 +1,7 @@
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use klvmr::allocator::{Allocator, NodePtr};
 use klvmr::chik_dialect::ChikDialect;
 use klvmr::serde::node_from_bytes;
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use std::fs::read_to_string;
 use std::time::Instant;
 
