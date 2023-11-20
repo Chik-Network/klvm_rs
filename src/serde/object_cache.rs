@@ -30,11 +30,11 @@ pub struct ObjectCache<'a, T> {
 /// and negative values become odd indices.
 
 fn node_to_index(node: &NodePtr) -> usize {
-    let node = *node;
-    if node < 0 {
-        (-node - node - 1) as usize
+    let value = node.0;
+    if value < 0 {
+        (-value - value - 1) as usize
     } else {
-        (node + node) as usize
+        (value + value) as usize
     }
 }
 
@@ -121,7 +121,7 @@ pub fn treehash(
                 .get_from_cache(&right)
                 .map(|right_value| hash_blobs(&[&[2], left_value, right_value])),
         },
-        SExp::Atom() => Some(hash_blobs(&[&[1], allocator.atom(node)])),
+        SExp::Atom => Some(hash_blobs(&[&[1], allocator.atom(node)])),
     }
 }
 
@@ -142,7 +142,7 @@ pub fn serialized_length(
                     .saturating_add(*right_value)
             }),
         },
-        SExp::Atom() => {
+        SExp::Atom => {
             let buf = allocator.atom(node);
             let lb: u64 = buf.len().try_into().unwrap_or(u64::MAX);
             Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
@@ -192,7 +192,7 @@ fn calculate_depth_simple(
                 .get_from_cache(&right)
                 .map(|right_value| 1 + max(*left_value, *right_value)),
         },
-        SExp::Atom() => Some(0),
+        SExp::Atom => Some(0),
     }
 }
 
@@ -264,11 +264,11 @@ fn test_serialized_length() {
 
 #[test]
 fn test_node_to_index() {
-    assert_eq!(node_to_index(&0), 0);
-    assert_eq!(node_to_index(&1), 2);
-    assert_eq!(node_to_index(&2), 4);
-    assert_eq!(node_to_index(&-1), 1);
-    assert_eq!(node_to_index(&-2), 3);
+    assert_eq!(node_to_index(&NodePtr(0)), 0);
+    assert_eq!(node_to_index(&NodePtr(1)), 2);
+    assert_eq!(node_to_index(&NodePtr(2)), 4);
+    assert_eq!(node_to_index(&NodePtr(-1)), 1);
+    assert_eq!(node_to_index(&NodePtr(-2)), 3);
 }
 
 // this test takes a very long time (>60s) in debug mode, so it only runs in release mode
