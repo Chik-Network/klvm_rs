@@ -4,7 +4,6 @@ use crate::err_utils::err;
 use crate::number::Number;
 use crate::reduction::EvalErr;
 use crate::reduction::{Reduction, Response};
-use bls12_381::Scalar;
 use lazy_static::lazy_static;
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
@@ -19,7 +18,7 @@ pub fn get_args<const N: usize>(
 ) -> Result<[NodePtr; N], EvalErr> {
     let mut next = args;
     let mut counter = 0;
-    let mut ret: [NodePtr; N] = [NodePtr(0); N];
+    let mut ret = [NodePtr::NIL; N];
 
     while let Some((first, rest)) = a.next(next) {
         next = rest;
@@ -56,7 +55,7 @@ fn test_get_args() {
     let a1 = a.new_number(1337.into()).unwrap();
     let a2 = a.new_number(0.into()).unwrap();
     let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.null();
+    let args0 = a.nil();
     let args1 = a.new_pair(a3, args0).unwrap();
     let args2 = a.new_pair(a2, args1).unwrap();
     let args3 = a.new_pair(a1, args2).unwrap();
@@ -92,7 +91,7 @@ pub fn get_varargs<const N: usize>(
 ) -> Result<([NodePtr; N], usize), EvalErr> {
     let mut next = args;
     let mut counter = 0;
-    let mut ret: [NodePtr; N] = [NodePtr(0); N];
+    let mut ret = [NodePtr::NIL; N];
 
     while let Some((first, rest)) = a.next(next) {
         next = rest;
@@ -119,7 +118,7 @@ fn test_get_varargs() {
     let a1 = a.new_number(1337.into()).unwrap();
     let a2 = a.new_number(0.into()).unwrap();
     let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.null();
+    let args0 = a.nil();
     let args1 = a.new_pair(a3, args0).unwrap();
     let args2 = a.new_pair(a2, args1).unwrap();
     let args3 = a.new_pair(a1, args2).unwrap();
@@ -132,19 +131,19 @@ fn test_get_varargs() {
     );
     assert_eq!(
         get_varargs::<4>(&a, args3, "test").unwrap(),
-        ([a1, a2, a3, NodePtr(0)], 3)
+        ([a1, a2, a3, NodePtr::NIL], 3)
     );
     assert_eq!(
         get_varargs::<4>(&a, args2, "test").unwrap(),
-        ([a2, a3, NodePtr(0), NodePtr(0)], 2)
+        ([a2, a3, NodePtr::NIL, NodePtr::NIL], 2)
     );
     assert_eq!(
         get_varargs::<4>(&a, args1, "test").unwrap(),
-        ([a3, NodePtr(0), NodePtr(0), NodePtr(0)], 1)
+        ([a3, NodePtr::NIL, NodePtr::NIL, NodePtr::NIL], 1)
     );
     assert_eq!(
         get_varargs::<4>(&a, args0, "test").unwrap(),
-        ([NodePtr(0), NodePtr(0), NodePtr(0), NodePtr(0)], 0)
+        ([NodePtr::NIL; 4], 0)
     );
 
     let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
@@ -156,7 +155,7 @@ fn test_get_varargs() {
     assert_eq!(r.1, "test takes no more than 1 argument");
 }
 
-pub fn nullp(a: &Allocator, n: NodePtr) -> bool {
+pub fn nilp(a: &Allocator, n: NodePtr) -> bool {
     match a.sexp(n) {
         SExp::Atom => a.atom_len(n) == 0,
         _ => false,
@@ -164,20 +163,20 @@ pub fn nullp(a: &Allocator, n: NodePtr) -> bool {
 }
 
 #[test]
-fn test_nullp() {
+fn test_nilp() {
     let mut a = Allocator::new();
     let a0 = a.new_number(42.into()).unwrap();
     let a1 = a.new_number(1337.into()).unwrap();
     let a3 = a.new_number(0.into()).unwrap();
     let a4 = a.new_atom(&[]).unwrap();
-    let a5 = a.null();
+    let a5 = a.nil();
     let pair = a.new_pair(a0, a1).unwrap();
-    assert!(!nullp(&a, pair));
-    assert!(!nullp(&a, a0));
-    assert!(!nullp(&a, a1));
-    assert!(nullp(&a, a3));
-    assert!(nullp(&a, a4));
-    assert!(nullp(&a, a5));
+    assert!(!nilp(&a, pair));
+    assert!(!nilp(&a, a0));
+    assert!(!nilp(&a, a1));
+    assert!(nilp(&a, a3));
+    assert!(nilp(&a, a4));
+    assert!(nilp(&a, a5));
 }
 
 pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr, EvalErr> {
@@ -573,18 +572,6 @@ fn test_i32_atom() {
     let r = i32_atom(&a, a3, "test").unwrap_err();
     assert_eq!(r.0, a3);
     assert_eq!(r.1, "test requires int32 args (with no leading zeros)");
-}
-
-pub fn number_to_scalar(n: Number) -> Scalar {
-    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
-    let mut scalar_array: [u8; 32] = [0; 32];
-    scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
-    let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
-    if sign == Sign::Minus {
-        exp.neg()
-    } else {
-        exp
-    }
 }
 
 pub fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {

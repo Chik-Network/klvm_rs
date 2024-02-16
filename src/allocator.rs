@@ -1,10 +1,62 @@
 use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective};
+use chik_bls::{G1Element, G2Element};
+use klvm_traits::{KlvmDecoder, KlvmEncoder, FromKlvmError, ToKlvmError};
+
+const MAX_NUM_ATOMS: usize = 62500000;
+const MAX_NUM_PAIRS: usize = 62500000;
+const NODE_PTR_IDX_BITS: u32 = 26;
+const NODE_PTR_IDX_MASK: u32 = (1 << NODE_PTR_IDX_BITS) - 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NodePtr(pub i32);
+pub struct NodePtr(u32);
+
+enum ObjectType {
+    Pair,
+    Bytes,
+}
+
+// The top 6 bits of the NodePtr indicate what type of object it is
+impl NodePtr {
+    pub const NIL: Self = Self::new(ObjectType::Bytes, 0);
+
+    const fn new(t: ObjectType, idx: usize) -> Self {
+        debug_assert!(idx <= NODE_PTR_IDX_MASK as usize);
+        NodePtr(((t as u32) << NODE_PTR_IDX_BITS) | (idx as u32))
+    }
+
+    // TODO: remove this
+    pub fn hack(val: usize) -> Self {
+        Self::new(ObjectType::Bytes, val)
+    }
+
+    fn node_type(&self) -> (ObjectType, usize) {
+        (
+            match self.0 >> NODE_PTR_IDX_BITS {
+                0 => ObjectType::Pair,
+                1 => ObjectType::Bytes,
+                _ => {
+                    panic!("unknown NodePtr type");
+                }
+            },
+            (self.0 & NODE_PTR_IDX_MASK) as usize,
+        )
+    }
+
+    pub(crate) fn as_index(&self) -> usize {
+        match self.node_type() {
+            (ObjectType::Pair, idx) => idx * 2,
+            (ObjectType::Bytes, idx) => idx * 2 + 1,
+        }
+    }
+}
+
+impl Default for NodePtr {
+    fn default() -> Self {
+        Self::NIL
+    }
+}
 
 pub enum SExp {
     Atom,
@@ -55,12 +107,6 @@ pub struct Allocator {
 
     // the atom_vec may not grow past this
     heap_limit: usize,
-
-    // the pair_vec may not grow past this
-    pair_limit: usize,
-
-    // the atom_vec may not grow past this
-    atom_limit: usize,
 }
 
 impl Default for Allocator {
@@ -71,29 +117,18 @@ impl Default for Allocator {
 
 impl Allocator {
     pub fn new() -> Self {
-        Self::new_limited(
-            u32::MAX as usize,
-            i32::MAX as usize,
-            (i32::MAX - 1) as usize,
-        )
+        Self::new_limited(u32::MAX as usize)
     }
 
-    pub fn new_limited(heap_limit: usize, pair_limit: usize, atom_limit: usize) -> Self {
+    pub fn new_limited(heap_limit: usize) -> Self {
         // we have a maximum of 4 GiB heap, because pointers are 32 bit unsigned
         assert!(heap_limit <= u32::MAX as usize);
-        // the atoms and pairs share a single 32 bit address space, where
-        // negative numbers are atoms and positive numbers are pairs. That's why
-        // we have one more slot for pairs than atoms
-        assert!(pair_limit <= i32::MAX as usize);
-        assert!(atom_limit < i32::MAX as usize);
 
         let mut r = Self {
             u8_vec: Vec::new(),
             pair_vec: Vec::new(),
             atom_vec: Vec::new(),
             heap_limit,
-            pair_limit,
-            atom_limit,
         };
         r.u8_vec.reserve(1024 * 1024);
         r.atom_vec.reserve(256);
@@ -133,48 +168,47 @@ impl Allocator {
     pub fn new_atom(&mut self, v: &[u8]) -> Result<NodePtr, EvalErr> {
         let start = self.u8_vec.len() as u32;
         if (self.heap_limit - start as usize) < v.len() {
-            return err(self.null(), "out of memory");
+            return err(self.nil(), "out of memory");
         }
-        if self.atom_vec.len() == self.atom_limit {
-            return err(self.null(), "too many atoms");
+        let idx = self.atom_vec.len();
+        if idx == MAX_NUM_ATOMS {
+            return err(self.nil(), "too many atoms");
         }
         self.u8_vec.extend_from_slice(v);
         let end = self.u8_vec.len() as u32;
         self.atom_vec.push(AtomBuf { start, end });
-        Ok(NodePtr(-(self.atom_vec.len() as i32)))
+        Ok(NodePtr::new(ObjectType::Bytes, idx))
     }
 
     pub fn new_number(&mut self, v: Number) -> Result<NodePtr, EvalErr> {
         node_from_number(self, &v)
     }
 
-    pub fn new_g1(&mut self, g1: G1Projective) -> Result<NodePtr, EvalErr> {
-        let g1: G1Affine = g1.into();
-        self.new_atom(&g1.to_compressed())
+    pub fn new_g1(&mut self, g1: G1Element) -> Result<NodePtr, EvalErr> {
+        self.new_atom(&g1.to_bytes())
     }
 
-    pub fn new_g2(&mut self, g2: G2Projective) -> Result<NodePtr, EvalErr> {
-        let g2: G2Affine = g2.into();
-        self.new_atom(&g2.to_compressed())
+    pub fn new_g2(&mut self, g2: G2Element) -> Result<NodePtr, EvalErr> {
+        self.new_atom(&g2.to_bytes())
     }
 
     pub fn new_pair(&mut self, first: NodePtr, rest: NodePtr) -> Result<NodePtr, EvalErr> {
-        let r = self.pair_vec.len() as i32;
-        if self.pair_vec.len() == self.pair_limit {
-            return err(self.null(), "too many pairs");
+        let idx = self.pair_vec.len();
+        if idx == MAX_NUM_PAIRS {
+            return err(self.nil(), "too many pairs");
         }
         self.pair_vec.push(IntPair { first, rest });
-        Ok(NodePtr(r))
+        Ok(NodePtr::new(ObjectType::Pair, idx))
     }
 
     pub fn new_substr(&mut self, node: NodePtr, start: u32, end: u32) -> Result<NodePtr, EvalErr> {
-        if node.0 >= 0 {
+        if self.atom_vec.len() == MAX_NUM_ATOMS {
+            return err(self.nil(), "too many atoms");
+        }
+        let (ObjectType::Bytes, idx) = node.node_type() else {
             return err(node, "(internal error) substr expected atom, got pair");
-        }
-        if self.atom_vec.len() == self.atom_limit {
-            return err(self.null(), "too many atoms");
-        }
-        let atom = self.atom_vec[(-node.0 - 1) as usize];
+        };
+        let atom = self.atom_vec[idx];
         let atom_len = atom.end - atom.start;
         if start > atom_len {
             return err(node, "substr start out of bounds");
@@ -185,31 +219,32 @@ impl Allocator {
         if end < start {
             return err(node, "substr invalid bounds");
         }
+        let idx = self.atom_vec.len();
         self.atom_vec.push(AtomBuf {
             start: atom.start + start,
             end: atom.start + end,
         });
-        Ok(NodePtr(-(self.atom_vec.len() as i32)))
+        Ok(NodePtr::new(ObjectType::Bytes, idx))
     }
 
     pub fn new_concat(&mut self, new_size: usize, nodes: &[NodePtr]) -> Result<NodePtr, EvalErr> {
-        if self.atom_vec.len() == self.atom_limit {
-            return err(self.null(), "too many atoms");
+        if self.atom_vec.len() == MAX_NUM_ATOMS {
+            return err(self.nil(), "too many atoms");
         }
         let start = self.u8_vec.len();
         if self.heap_limit - start < new_size {
-            return err(self.null(), "out of memory");
+            return err(self.nil(), "out of memory");
         }
         self.u8_vec.reserve(new_size);
 
         let mut counter: usize = 0;
         for node in nodes {
-            if node.0 >= 0 {
+            let (ObjectType::Bytes, idx) = node.node_type() else {
                 self.u8_vec.truncate(start);
                 return err(*node, "(internal error) concat expected atom, got pair");
-            }
+            };
 
-            let term = self.atom_vec[(-node.0 - 1) as usize];
+            let term = self.atom_vec[idx];
             if counter + term.len() > new_size {
                 self.u8_vec.truncate(start);
                 return err(*node, "(internal error) concat passed invalid new_size");
@@ -221,16 +256,17 @@ impl Allocator {
         if counter != new_size {
             self.u8_vec.truncate(start);
             return err(
-                self.null(),
+                self.nil(),
                 "(internal error) concat passed invalid new_size",
             );
         }
         let end = self.u8_vec.len() as u32;
+        let idx = self.atom_vec.len();
         self.atom_vec.push(AtomBuf {
             start: (start as u32),
             end,
         });
-        Ok(NodePtr(-(self.atom_vec.len() as i32)))
+        Ok(NodePtr::new(ObjectType::Bytes, idx))
     }
 
     pub fn atom_eq(&self, lhs: NodePtr, rhs: NodePtr) -> bool {
@@ -238,63 +274,68 @@ impl Allocator {
     }
 
     pub fn atom(&self, node: NodePtr) -> &[u8] {
-        assert!(node.0 < 0, "expected atom, got pair");
-        let atom = self.atom_vec[(-node.0 - 1) as usize];
-        &self.u8_vec[atom.start as usize..atom.end as usize]
+        match node.node_type() {
+            (ObjectType::Bytes, idx) => {
+                let atom = self.atom_vec[idx];
+                &self.u8_vec[atom.start as usize..atom.end as usize]
+            }
+            _ => {
+                panic!("expected atom, got pair");
+            }
+        }
     }
 
     pub fn atom_len(&self, node: NodePtr) -> usize {
-        self.atom(node).len()
+        match node.node_type() {
+            (ObjectType::Bytes, idx) => {
+                let atom = self.atom_vec[idx];
+                (atom.end - atom.start) as usize
+            }
+            _ => {
+                panic!("expected atom, got pair");
+            }
+        }
     }
 
     pub fn number(&self, node: NodePtr) -> Number {
         number_from_u8(self.atom(node))
     }
 
-    pub fn g1(&self, node: NodePtr) -> Result<G1Projective, EvalErr> {
+    pub fn g1(&self, node: NodePtr) -> Result<G1Element, EvalErr> {
         let blob = match self.sexp(node) {
             SExp::Atom => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G1 point");
             }
         };
-        if blob.len() != 48 {
-            return err(node, "atom is not G1 size, 48 bytes");
-        }
-
-        let affine: Option<G1Affine> =
-            G1Affine::from_compressed(blob.try_into().expect("G1 slice is not 48 bytes")).into();
-        match affine {
-            Some(point) => Ok(G1Projective::from(point)),
-            None => err(node, "atom is not a G1 point"),
-        }
+        let array: [u8; 48] = blob
+            .try_into()
+            .map_err(|_| EvalErr(node, "atom is not G1 size, 48 bytes".to_string()))?;
+        G1Element::from_bytes(&array)
+            .map_err(|_| EvalErr(node, "atom is not a G1 point".to_string()))
     }
 
-    pub fn g2(&self, node: NodePtr) -> Result<G2Projective, EvalErr> {
+    pub fn g2(&self, node: NodePtr) -> Result<G2Element, EvalErr> {
         let blob = match self.sexp(node) {
             SExp::Atom => self.atom(node),
             _ => {
                 return err(node, "pair found, expected G2 point");
             }
         };
-        if blob.len() != 96 {
-            return err(node, "atom is not G2 size, 96 bytes");
-        }
-
-        let affine: Option<G2Affine> =
-            G2Affine::from_compressed(blob.try_into().expect("G2 slice is not 96 bytes")).into();
-        match affine {
-            Some(point) => Ok(G2Projective::from(point)),
-            None => err(node, "atom is not a G2 point"),
-        }
+        let array = blob
+            .try_into()
+            .map_err(|_| EvalErr(node, "atom is not G2 size, 96 bytes".to_string()))?;
+        G2Element::from_bytes(&array)
+            .map_err(|_| EvalErr(node, "atom is not a G2 point".to_string()))
     }
 
     pub fn sexp(&self, node: NodePtr) -> SExp {
-        if node.0 >= 0 {
-            let pair = self.pair_vec[node.0 as usize];
-            SExp::Pair(pair.first, pair.rest)
-        } else {
-            SExp::Atom
+        match node.node_type() {
+            (ObjectType::Bytes, _) => SExp::Atom,
+            (ObjectType::Pair, idx) => {
+                let pair = self.pair_vec[idx];
+                SExp::Pair(pair.first, pair.rest)
+            }
         }
     }
 
@@ -310,12 +351,12 @@ impl Allocator {
         }
     }
 
-    pub fn null(&self) -> NodePtr {
-        NodePtr(-1)
+    pub fn nil(&self) -> NodePtr {
+        NodePtr::new(ObjectType::Bytes, 0)
     }
 
     pub fn one(&self) -> NodePtr {
-        NodePtr(-2)
+        NodePtr::new(ObjectType::Bytes, 1)
     }
 
     #[cfg(feature = "counters")]
@@ -334,10 +375,59 @@ impl Allocator {
     }
 }
 
+impl KlvmEncoder for Allocator {
+    type Node = NodePtr;
+
+    fn encode_atom(&mut self, bytes: &[u8]) -> Result<Self::Node, ToKlvmError> {
+        self.new_atom(bytes).or(Err(ToKlvmError::OutOfMemory))
+    }
+
+    fn encode_pair(
+        &mut self,
+        first: Self::Node,
+        rest: Self::Node,
+    ) -> Result<Self::Node, ToKlvmError> {
+        self.new_pair(first, rest).or(Err(ToKlvmError::OutOfMemory))
+    }
+}
+
+impl KlvmDecoder for Allocator {
+    type Node = NodePtr;
+
+    fn decode_atom(&self, node: &Self::Node) -> Result<&[u8], FromKlvmError> {
+        if let SExp::Atom = self.sexp(*node) {
+            Ok(self.atom(*node))
+        } else {
+            Err(FromKlvmError::ExpectedAtom)
+        }
+    }
+
+    fn decode_pair(&self, node: &Self::Node) -> Result<(Self::Node, Self::Node), FromKlvmError> {
+        if let SExp::Pair(first, rest) = self.sexp(*node) {
+            Ok((first, rest))
+        } else {
+            Err(FromKlvmError::ExpectedPair)
+        }
+    }
+}
+
+#[test]
+fn test_node_as_index() {
+    assert_eq!(NodePtr::new(ObjectType::Pair, 0).as_index(), 0);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 1).as_index(), 2);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 2).as_index(), 4);
+    assert_eq!(NodePtr::new(ObjectType::Pair, 3).as_index(), 6);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 0).as_index(), 1);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 1).as_index(), 3);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 2).as_index(), 5);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 3).as_index(), 7);
+    assert_eq!(NodePtr::new(ObjectType::Bytes, 4).as_index(), 9);
+}
+
 #[test]
 fn test_atom_eq() {
     let mut a = Allocator::new();
-    let a0 = a.null();
+    let a0 = a.nil();
     let a1 = a.one();
     let a2 = a.new_atom(&[1]).unwrap();
     let a3 = a.new_atom(&[0x5, 0x39]).unwrap();
@@ -381,12 +471,12 @@ fn test_atom_eq() {
 }
 
 #[test]
-fn test_null() {
+fn test_nil() {
     let a = Allocator::new();
-    assert_eq!(a.atom(a.null()), b"");
+    assert_eq!(a.atom(a.nil()), b"");
 
-    let buf = match a.sexp(a.null()) {
-        SExp::Atom => a.atom(a.null()),
+    let buf = match a.sexp(a.nil()) {
+        SExp::Atom => a.atom(a.nil()),
         SExp::Pair(_, _) => panic!("unexpected"),
     };
     assert_eq!(buf, b"");
@@ -446,7 +536,7 @@ fn test_allocate_pair() {
 
 #[test]
 fn test_allocate_heap_limit() {
-    let mut a = Allocator::new_limited(6, i32::MAX as usize, (i32::MAX - 1) as usize);
+    let mut a = Allocator::new_limited(6);
     // we can't allocate 6 bytes
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "out of memory");
     // but 5 is OK
@@ -455,9 +545,9 @@ fn test_allocate_heap_limit() {
 
 #[test]
 fn test_allocate_atom_limit() {
-    let mut a = Allocator::new_limited(u32::MAX as usize, i32::MAX as usize, 5);
+    let mut a = Allocator::new();
     // we can allocate 5 atoms total
-    // keep in mind that we always have 2 pre-allocated atoms for null and one,
+    // keep in mind that we always have 2 pre-allocated atoms for nil and one,
     // so with a limit of 5, we only have 3 slots left at this point.
     let _atom = a.new_atom(b"foo").unwrap();
     let _atom = a.new_atom(b"bar").unwrap();
@@ -465,17 +555,28 @@ fn test_allocate_atom_limit() {
 
     // the 4th fails and ensure not to append atom to the stack
     assert_eq!(a.u8_vec.len(), 10);
+    for _ in 3..MAX_NUM_ATOMS - 2 {
+        // exhaust the numebr of atoms allowed to be allocated
+        let _ = a.new_atom(b"foo").unwrap();
+    }
     assert_eq!(a.new_atom(b"foobar").unwrap_err().1, "too many atoms");
-    assert_eq!(a.u8_vec.len(), 10);
+
+    // the pre-allocated nil() and one() also count against the limit, and they
+    // use 0 and 1 bytes respectively
+    assert_eq!(a.u8_vec.len(), MAX_NUM_ATOMS * 3 - 3 - 2);
 }
 
 #[test]
 fn test_allocate_pair_limit() {
-    let mut a = Allocator::new_limited(u32::MAX as usize, 1, (i32::MAX - 1) as usize);
+    let mut a = Allocator::new();
     let atom = a.new_atom(b"foo").unwrap();
     // one pair is OK
     let _pair1 = a.new_pair(atom, atom).unwrap();
-    // but not 2
+    for _ in 1..MAX_NUM_PAIRS {
+        // exhaust the numebr of pairs allowed to be allocated
+        let _ = a.new_pair(atom, atom).unwrap();
+    }
+
     assert_eq!(a.new_pair(atom, atom).unwrap_err().1, "too many pairs");
 }
 
@@ -576,7 +677,7 @@ fn test_sexp() {
 
 #[test]
 fn test_concat_limit() {
-    let mut a = Allocator::new_limited(9, i32::MAX as usize, (i32::MAX - 1) as usize);
+    let mut a = Allocator::new_limited(9);
     let atom1 = a.new_atom(b"f").unwrap();
     let atom2 = a.new_atom(b"o").unwrap();
     let atom3 = a.new_atom(b"o").unwrap();
@@ -695,7 +796,7 @@ fn test_point_size_error(#[case] fun: TestFun, #[case] size: usize, #[case] expe
 #[case(test_g2, "pair found, expected G2 point")]
 fn test_point_atom_pair(#[case] fun: TestFun, #[case] expected: &str) {
     let mut a = Allocator::new();
-    let n = a.new_pair(a.null(), a.one()).unwrap();
+    let n = a.new_pair(a.nil(), a.one()).unwrap();
     let r = fun(&a, n);
     assert_eq!(r.0, n);
     assert_eq!(r.1, expected.to_string());
@@ -719,7 +820,7 @@ fn test_g1_roundtrip(#[case] atom: &str) {
     let mut a = Allocator::new();
     let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
     let g1 = a.g1(n).unwrap();
-    assert_eq!(hex::encode(G1Affine::from(g1).to_compressed()), atom);
+    assert_eq!(hex::encode(g1.to_bytes()), atom);
 
     let g1_copy = a.new_g1(g1).unwrap();
     let g1_atom = a.atom(g1_copy);
@@ -764,7 +865,7 @@ fn test_g2_roundtrip(#[case] atom: &str) {
     let mut a = Allocator::new();
     let n = a.new_atom(&hex::decode(atom).unwrap()).unwrap();
     let g2 = a.g2(n).unwrap();
-    assert_eq!(hex::encode(G2Affine::from(g2).to_compressed()), atom);
+    assert_eq!(hex::encode(g2.to_bytes()), atom);
 
     let g2_copy = a.new_g2(g2).unwrap();
     let g2_atom = a.atom(g2_copy);
@@ -804,31 +905,25 @@ fn make_number(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
 
 #[cfg(test)]
 fn make_g1(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
-    let v: G1Projective = G1Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G1Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     a.new_g1(v).unwrap()
 }
 
 #[cfg(test)]
 fn make_g2(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
-    let v: G2Projective = G2Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G2Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     a.new_g2(v).unwrap()
 }
 
 #[cfg(test)]
 fn make_g1_fail(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
     assert!(<[u8; 48]>::try_from(bytes).is_err());
-    //assert!(G1Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     a.new_atom(bytes).unwrap()
 }
 
 #[cfg(test)]
 fn make_g2_fail(a: &mut Allocator, bytes: &[u8]) -> NodePtr {
     assert!(<[u8; 96]>::try_from(bytes).is_err());
-    //assert!(G2Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     a.new_atom(bytes).unwrap()
 }
 
@@ -851,32 +946,26 @@ fn check_number(a: &Allocator, n: NodePtr, bytes: &[u8]) {
 #[cfg(test)]
 fn check_g1(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     let num = a.g1(n).unwrap();
-    let v: G1Projective = G1Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G1Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     assert_eq!(num, v);
 }
 
 #[cfg(test)]
 fn check_g2(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     let num = a.g2(n).unwrap();
-    let v: G2Projective = G2Affine::from_compressed(bytes.try_into().unwrap())
-        .unwrap()
-        .into();
+    let v = G2Element::from_bytes(bytes.try_into().unwrap()).unwrap();
     assert_eq!(num, v);
 }
 
 #[cfg(test)]
 fn check_g1_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     assert_eq!(a.g1(n).unwrap_err().0, n);
-    //assert!(G1Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     assert!(<[u8; 48]>::try_from(bytes).is_err());
 }
 
 #[cfg(test)]
 fn check_g2_fail(a: &Allocator, n: NodePtr, bytes: &[u8]) {
     assert_eq!(a.g2(n).unwrap_err().0, n);
-    //assert!(G2Affine::from_compressed(bytes.try_into().unwrap()).is_none().unwrap_u8() != 0);
     assert!(<[u8; 96]>::try_from(bytes).is_err());
 }
 
@@ -1042,8 +1131,7 @@ e28f75bb8f1c7c42c39a8c5529bf0f4e",
 fn test_atom_len_g1(#[case] buffer_hex: &str, #[case] expected: usize) {
     let mut a = Allocator::new();
     let buffer = &hex::decode(buffer_hex).unwrap();
-    let g1 =
-        G1Projective::from(G1Affine::from_compressed(&buffer[..].try_into().unwrap()).unwrap());
+    let g1 = G1Element::from_bytes(&buffer[..].try_into().unwrap()).expect("invalid G1 point");
     let atom = a.new_g1(g1).unwrap();
     assert_eq!(a.atom_len(atom), expected);
 }
@@ -1074,8 +1162,7 @@ fn test_atom_len_g2(#[case] buffer_hex: &str, #[case] expected: usize) {
     let mut a = Allocator::new();
 
     let buffer = &hex::decode(buffer_hex).unwrap();
-    let g2 =
-        G2Projective::from(G2Affine::from_compressed(&buffer[..].try_into().unwrap()).unwrap());
+    let g2 = G2Element::from_bytes(&buffer[..].try_into().unwrap()).expect("invalid G2 point");
     let atom = a.new_g2(g2).unwrap();
     assert_eq!(a.atom_len(atom), expected);
 }

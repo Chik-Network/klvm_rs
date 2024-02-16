@@ -17,13 +17,18 @@ pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
 
-pub use allocator::Allocator;
+pub mod from_node_ptr;
+pub mod to_node_ptr;
+
+pub use from_node_ptr::FromNodePtr;
+pub use to_node_ptr::ToNodePtr;
+
+pub use allocator::{Allocator, NodePtr};
 pub use chik_dialect::ChikDialect;
 pub use run_program::run_program;
 
 pub use chik_dialect::{
-    ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, ENABLE_SECP_OPS, LIMIT_HEAP,
-    MEMPOOL_MODE, NO_UNKNOWN_OPS,
+    ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
 };
 
 #[cfg(feature = "counters")]

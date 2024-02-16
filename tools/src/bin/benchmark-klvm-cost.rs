@@ -1,6 +1,6 @@
 use clap::Parser;
 use klvmr::allocator::{Allocator, NodePtr};
-use klvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS};
+use klvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD};
 use klvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
@@ -16,7 +16,7 @@ enum OpArgs {
 
 // special argument to indicate it should be substituted for varied in the FreeBytes test to
 // measure cost per byte
-const VARIABLE: NodePtr = NodePtr(999);
+const VARIABLE_VAL: usize = 999;
 
 // builds calls in the form:
 // (<op> arg arg ...)
@@ -29,7 +29,7 @@ fn build_call(
     num: i32,
     extra: Option<NodePtr>,
 ) -> NodePtr {
-    let mut args = a.null();
+    let mut args = a.nil();
     for _i in 0..num {
         match arg {
             OpArgs::SingleArg(a1) => {
@@ -65,7 +65,7 @@ fn build_nested_call(
 ) -> NodePtr {
     let op_code = a.new_number(op.into()).unwrap();
     for _i in 0..num {
-        let mut args = a.null();
+        let mut args = a.nil();
         match arg {
             OpArgs::SingleArg(a1) => {
                 args = a.new_pair(a1, args).unwrap();
@@ -99,9 +99,10 @@ fn quote(a: &mut Allocator, v: NodePtr) -> NodePtr {
 }
 
 fn subst_node(arg: NodePtr, substitution: NodePtr) -> NodePtr {
-    match arg {
-        VARIABLE => substitution,
-        _ => arg,
+    if arg == NodePtr::hack(VARIABLE_VAL) {
+        substitution
+    } else {
+        arg
     }
 }
 
@@ -120,9 +121,9 @@ fn substitute(args: OpArgs, subst: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
     let start = Instant::now();
-    let r = run_program(a, &dialect, call, a.null(), 11000000000);
+    let r = run_program(a, &dialect, call, a.nil(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
         r.unwrap();
     }
@@ -171,7 +172,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
 // establish how much time each additional argument contributes
 fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
 
     let subst = a
         .new_atom(
@@ -187,7 +188,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
         for i in 0..100 {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.null(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
@@ -214,7 +215,7 @@ fn base_call_time(
     output: &mut dyn Write,
 ) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS);
+    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
 
     let subst = a
         .new_atom(
@@ -231,7 +232,7 @@ fn base_call_time(
             a.restore_checkpoint(&checkpoint);
             let call = build_nested_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
-            let r = run_program(a, &dialect, call, a.null(), 11000000000);
+            let r = run_program(a, &dialect, call, a.nil(), 11000000000);
             if (op.flags & ALLOW_FAILURE) == 0 {
                 r.unwrap();
             }
@@ -337,6 +338,8 @@ pub fn main() {
 
     let mut a = Allocator::new();
 
+    let variable = NodePtr::hack(VARIABLE_VAL);
+
     let g1 = a.new_atom(&hex::decode("97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb").unwrap()).unwrap();
     let g2 = a.new_atom(&hex::decode("93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8").unwrap()).unwrap();
 
@@ -386,21 +389,21 @@ pub fn main() {
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
-            arg: OpArgs::ThreeArgs(number, number, VARIABLE),
+            arg: OpArgs::ThreeArgs(number, number, variable),
             extra: None,
             flags: PER_BYTE_COST | EXPONENTIAL_COST,
         },
         Operator {
             opcode: 60,
             name: "modpow (exponent cost)",
-            arg: OpArgs::ThreeArgs(number, VARIABLE, number),
+            arg: OpArgs::ThreeArgs(number, variable, number),
             extra: None,
             flags: PER_BYTE_COST | EXPONENTIAL_COST,
         },
         Operator {
             opcode: 60,
             name: "modpow (value cost)",
-            arg: OpArgs::ThreeArgs(VARIABLE, number, number),
+            arg: OpArgs::ThreeArgs(variable, number, number),
             extra: None,
             flags: PER_BYTE_COST,
         },
@@ -421,7 +424,7 @@ pub fn main() {
         Operator {
             opcode: 50,
             name: "g1_multiply",
-            arg: OpArgs::TwoArgs(g1, VARIABLE),
+            arg: OpArgs::TwoArgs(g1, variable),
             extra: Some(g1),
             flags: PER_BYTE_COST,
         },
@@ -449,7 +452,7 @@ pub fn main() {
         Operator {
             opcode: 54,
             name: "g2_multiply",
-            arg: OpArgs::TwoArgs(g2, VARIABLE),
+            arg: OpArgs::TwoArgs(g2, variable),
             extra: Some(g2),
             flags: PER_BYTE_COST,
         },
@@ -463,14 +466,14 @@ pub fn main() {
         Operator {
             opcode: 56,
             name: "g1_map",
-            arg: OpArgs::SingleArg(VARIABLE),
+            arg: OpArgs::SingleArg(variable),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
         },
         Operator {
             opcode: 57,
             name: "g2_map",
-            arg: OpArgs::SingleArg(VARIABLE),
+            arg: OpArgs::SingleArg(variable),
             extra: None,
             flags: PER_BYTE_COST | LARGE_BUFFERS,
         },
