@@ -3,8 +3,7 @@ use libfuzzer_sys::fuzz_target;
 
 use klvmr::allocator::Allocator;
 use klvmr::chik_dialect::{
-    ChikDialect, ENABLE_BLS_OPS, ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_SECP_OPS, MEMPOOL_MODE,
-    NO_UNKNOWN_OPS,
+    ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD, MEMPOOL_MODE, NO_UNKNOWN_OPS,
 };
 use klvmr::cost::Cost;
 use klvmr::reduction::Reduction;
@@ -25,8 +24,8 @@ fuzz_target!(|data: &[u8]| {
 
     for flags in [
         0,
-        ENABLE_BLS_OPS | ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS,
-        ENABLE_BLS_OPS | ENABLE_BLS_OPS_OUTSIDE_GUARD | ENABLE_SECP_OPS | NO_UNKNOWN_OPS,
+        ENABLE_BLS_OPS_OUTSIDE_GUARD,
+        ENABLE_BLS_OPS_OUTSIDE_GUARD | NO_UNKNOWN_OPS,
         MEMPOOL_MODE,
     ] {
         let dialect = ChikDialect::new(flags);
