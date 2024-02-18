@@ -2,7 +2,6 @@ use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
 use chik_bls::{G1Element, G2Element};
-use klvm_traits::{FromKlvmError, KlvmDecoder, KlvmEncoder, ToKlvmError};
 
 const MAX_NUM_ATOMS: usize = 62500000;
 const MAX_NUM_PAIRS: usize = 62500000;
@@ -372,42 +371,6 @@ impl Allocator {
     #[cfg(feature = "counters")]
     pub fn heap_size(&self) -> usize {
         self.u8_vec.len()
-    }
-}
-
-impl KlvmEncoder for Allocator {
-    type Node = NodePtr;
-
-    fn encode_atom(&mut self, bytes: &[u8]) -> Result<Self::Node, ToKlvmError> {
-        self.new_atom(bytes).or(Err(ToKlvmError::OutOfMemory))
-    }
-
-    fn encode_pair(
-        &mut self,
-        first: Self::Node,
-        rest: Self::Node,
-    ) -> Result<Self::Node, ToKlvmError> {
-        self.new_pair(first, rest).or(Err(ToKlvmError::OutOfMemory))
-    }
-}
-
-impl KlvmDecoder for Allocator {
-    type Node = NodePtr;
-
-    fn decode_atom(&self, node: &Self::Node) -> Result<&[u8], FromKlvmError> {
-        if let SExp::Atom = self.sexp(*node) {
-            Ok(self.atom(*node))
-        } else {
-            Err(FromKlvmError::ExpectedAtom)
-        }
-    }
-
-    fn decode_pair(&self, node: &Self::Node) -> Result<(Self::Node, Self::Node), FromKlvmError> {
-        if let SExp::Pair(first, rest) = self.sexp(*node) {
-            Ok((first, rest))
-        } else {
-            Err(FromKlvmError::ExpectedPair)
-        }
     }
 }
 
