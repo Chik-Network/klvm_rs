@@ -192,6 +192,7 @@ jobs:
       - name: Install rust
         uses: dtolnay/rust-toolchain@master
         with:
+            toolchain: nightly-2024-02-11
             components: rustfmt, clippy
       - name: fmt
         run: |
