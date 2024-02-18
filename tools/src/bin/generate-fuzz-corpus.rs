@@ -1,5 +1,5 @@
-use klvmr::serde::write_atom::write_atom;
 use hex_literal::hex;
+use klvmr::serde::write_atom::write_atom;
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
