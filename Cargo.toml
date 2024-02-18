@@ -3,7 +3,7 @@ members = ["fuzz", "tools", "wasm", "wheel"]
 
 [package]
 name = "klvmr"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -15,6 +15,7 @@ readme = "README.md"
 [lib]
 name = "klvmr"
 crate-type = ["rlib"]
+bench = false
 
 [features]
 # when enabling the "counters" features, the KLVM interpreter is instrumented to
@@ -26,7 +27,7 @@ counters = []
 pre-eval = []
 
 [profile.release]
-lto = true
+lto = "thin"
 
 [dependencies]
 lazy_static = "1.4.0"

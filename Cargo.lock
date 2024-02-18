@@ -765,7 +765,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs"
-version = "0.3.2"
+version = "0.6.0"
 dependencies = [
  "klvmr",
  "pyo3",
@@ -792,7 +792,7 @@ dependencies = [
 
 [[package]]
 name = "klvmr"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chik-bls 0.4.0",
  "criterion",
