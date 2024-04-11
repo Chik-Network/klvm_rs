@@ -2,7 +2,7 @@ use crate::err_utils::err;
 use crate::number::{node_from_number, number_from_u8, Number};
 use crate::reduction::EvalErr;
 use chik_bls::{G1Element, G2Element};
-use klvm_traits::{KlvmDecoder, KlvmEncoder, FromKlvmError, ToKlvmError};
+use klvm_traits::{FromKlvmError, KlvmDecoder, KlvmEncoder, ToKlvmError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodePtr(pub i32);

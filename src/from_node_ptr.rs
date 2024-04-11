@@ -1,6 +1,6 @@
 use crate::{allocator::NodePtr, Allocator};
 
-use klvm_traits::{KlvmDecoder, FromKlvm, FromKlvmError};
+use klvm_traits::{FromKlvm, FromKlvmError, KlvmDecoder};
 
 pub trait FromNodePtr {
     fn from_node_ptr(a: &Allocator, node: NodePtr) -> Result<Self, FromKlvmError>

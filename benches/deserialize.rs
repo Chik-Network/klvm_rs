@@ -1,9 +1,9 @@
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use klvmr::allocator::Allocator;
 use klvmr::serde::node_from_bytes;
 use klvmr::serde::node_from_bytes_backrefs;
 use klvmr::serde::serialized_length_from_bytes;
 use klvmr::serde::serialized_length_from_bytes_trusted;
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use std::include_bytes;
 use std::time::Instant;
 
