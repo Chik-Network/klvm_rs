@@ -19,27 +19,27 @@ pub fn op_secp256r1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
 
     // first argument is sec1 encoded pubkey
     let pubkey = atom(a, pubkey, "secp256r1_verify pubkey")?;
-    let verifier = P1VerifyingKey::from_sec1_bytes(pubkey.as_ref())
+    let verifier = P1VerifyingKey::from_sec1_bytes(pubkey)
         .or_else(|_| err(input, "secp256r1_verify pubkey is not valid"))?;
 
     // second arg is sha256 hash of message
     let msg = atom(a, msg, "secp256r1_verify msg")?;
-    if msg.as_ref().len() != 32 {
+    if msg.len() != 32 {
         return err(input, "secp256r1_verify message digest is not 32 bytes");
     }
 
     // third arg is a fixed-size signature
     let sig = atom(a, sig, "secp256r1_verify sig")?;
-    let sig = P1Signature::from_slice(sig.as_ref())
+    let sig = P1Signature::from_slice(sig)
         .or_else(|_| err(input, "secp256r1_verify sig is not valid"))?;
 
     // verify signature
-    let result = verifier.verify_prehash(msg.as_ref(), &sig);
+    let result = verifier.verify_prehash(msg, &sig);
 
     if result.is_err() {
         err(input, "secp256r1_verify failed")
     } else {
-        Ok(Reduction(cost, a.nil()))
+        Ok(Reduction(cost, a.null()))
     }
 }
 
@@ -52,26 +52,26 @@ pub fn op_secp256k1_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) ->
 
     // first argument is sec1 encoded pubkey
     let pubkey = atom(a, pubkey, "secp256k1_verify pubkey")?;
-    let verifier = K1VerifyingKey::from_sec1_bytes(pubkey.as_ref())
+    let verifier = K1VerifyingKey::from_sec1_bytes(pubkey)
         .or_else(|_| err(input, "secp256k1_verify pubkey is not valid"))?;
 
     // second arg is message
     let msg = atom(a, msg, "secp256k1_verify msg")?;
-    if msg.as_ref().len() != 32 {
+    if msg.len() != 32 {
         return err(input, "secp256k1_verify message digest is not 32 bytes");
     }
 
     // third arg is a fixed-size signature
     let sig = atom(a, sig, "secp256k1_verify sig")?;
-    let sig = K1Signature::from_slice(sig.as_ref())
+    let sig = K1Signature::from_slice(sig)
         .or_else(|_| err(input, "secp256k1_verify sig is not valid"))?;
 
     // verify signature
-    let result = verifier.verify_prehash(msg.as_ref(), &sig);
+    let result = verifier.verify_prehash(msg, &sig);
 
     if result.is_err() {
         err(input, "secp256k1_verify failed")
     } else {
-        Ok(Reduction(cost, a.nil()))
+        Ok(Reduction(cost, a.null()))
     }
 }

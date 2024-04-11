@@ -42,7 +42,7 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
         + TRAVERSE_COST_PER_BIT;
 
     if first_bit_byte_index >= node_index.len() {
-        return Ok(Reduction(cost, allocator.nil()));
+        return Ok(Reduction(cost, allocator.null()));
     }
 
     // find first non-zero bit (the most significant bit is a sentinel)
@@ -69,42 +69,6 @@ pub fn traverse_path(allocator: &Allocator, node_index: &[u8], args: NodePtr) ->
         }
         cost += TRAVERSE_COST_PER_BIT;
     }
-    Ok(Reduction(cost, arg_list))
-}
-
-// The cost calculation for this version of traverse_path assumes the node_index has the canonical
-// integer representation (which is true for SmallAtom in the allocator). If there are any
-// redundant leading zeros, the slow path must be used
-pub fn traverse_path_fast(allocator: &Allocator, mut node_index: u32, args: NodePtr) -> Response {
-    if node_index == 0 {
-        return Ok(Reduction(
-            TRAVERSE_BASE_COST + TRAVERSE_COST_PER_BIT,
-            allocator.nil(),
-        ));
-    }
-
-    let mut arg_list: NodePtr = args;
-
-    let mut cost: Cost = TRAVERSE_BASE_COST + TRAVERSE_COST_PER_BIT;
-    let mut num_bits = 0;
-    while node_index != 1 {
-        let SExp::Pair(left, right) = allocator.sexp(arg_list) else {
-            return Err(EvalErr(arg_list, "path into atom".into()));
-        };
-
-        let is_bit_set: bool = (node_index & 0x01) != 0;
-        arg_list = if is_bit_set { right } else { left };
-        node_index >>= 1;
-        num_bits += 1
-    }
-
-    cost += num_bits * TRAVERSE_COST_PER_BIT;
-    // since positive numbers sometimes need a leading zero, e.g. 0x80, 0x8000 etc. We also
-    // need to add the cost of that leading zero byte
-    if num_bits == 7 || num_bits == 15 || num_bits == 23 || num_bits == 31 {
-        cost += TRAVERSE_COST_PER_ZERO_BYTE;
-    }
-
     Ok(Reduction(cost, arg_list))
 }
 
@@ -141,21 +105,15 @@ fn test_traverse_path() {
     use crate::allocator::Allocator;
 
     let mut a = Allocator::new();
-    let nul = a.nil();
+    let nul = a.null();
     let n1 = a.new_atom(&[0, 1, 2]).unwrap();
     let n2 = a.new_atom(&[4, 5, 6]).unwrap();
 
-    assert_eq!(traverse_path(&a, &[], n1).unwrap(), Reduction(44, nul));
+    assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
     assert_eq!(traverse_path(&a, &[0b1], n1).unwrap(), Reduction(44, n1));
     assert_eq!(traverse_path(&a, &[0b1], n2).unwrap(), Reduction(44, n2));
 
     // cost for leading zeros
-    assert_eq!(traverse_path(&a, &[0], n1).unwrap(), Reduction(48, nul));
-    assert_eq!(traverse_path(&a, &[0, 0], n1).unwrap(), Reduction(52, nul));
-    assert_eq!(
-        traverse_path(&a, &[0, 0, 0], n1).unwrap(),
-        Reduction(56, nul)
-    );
     assert_eq!(
         traverse_path(&a, &[0, 0, 0, 0], n1).unwrap(),
         Reduction(60, nul)
@@ -199,64 +157,6 @@ fn test_traverse_path() {
     );
     assert_eq!(
         traverse_path(&a, &[0b1110], list).unwrap_err(),
-        EvalErr(n2, "path into atom".to_string())
-    );
-}
-
-#[test]
-fn test_traverse_path_fast_fast() {
-    use crate::allocator::Allocator;
-
-    let mut a = Allocator::new();
-    let nul = a.nil();
-    let n1 = a.new_atom(&[0, 1, 2]).unwrap();
-    let n2 = a.new_atom(&[4, 5, 6]).unwrap();
-
-    assert_eq!(traverse_path_fast(&a, 0, n1).unwrap(), Reduction(44, nul));
-    assert_eq!(traverse_path_fast(&a, 0b1, n1).unwrap(), Reduction(44, n1));
-    assert_eq!(traverse_path_fast(&a, 0b1, n2).unwrap(), Reduction(44, n2));
-
-    let n3 = a.new_pair(n1, n2).unwrap();
-    assert_eq!(traverse_path_fast(&a, 0b1, n3).unwrap(), Reduction(44, n3));
-    assert_eq!(traverse_path_fast(&a, 0b10, n3).unwrap(), Reduction(48, n1));
-    assert_eq!(traverse_path_fast(&a, 0b11, n3).unwrap(), Reduction(48, n2));
-    assert_eq!(traverse_path_fast(&a, 0b11, n3).unwrap(), Reduction(48, n2));
-
-    let list = a.new_pair(n1, nul).unwrap();
-    let list = a.new_pair(n2, list).unwrap();
-
-    assert_eq!(
-        traverse_path_fast(&a, 0b10, list).unwrap(),
-        Reduction(48, n2)
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b101, list).unwrap(),
-        Reduction(52, n1)
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b111, list).unwrap(),
-        Reduction(52, nul)
-    );
-
-    // errors
-    assert_eq!(
-        traverse_path_fast(&a, 0b1011, list).unwrap_err(),
-        EvalErr(nul, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1101, list).unwrap_err(),
-        EvalErr(n1, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1001, list).unwrap_err(),
-        EvalErr(n1, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1010, list).unwrap_err(),
-        EvalErr(n2, "path into atom".to_string())
-    );
-    assert_eq!(
-        traverse_path_fast(&a, 0b1110, list).unwrap_err(),
         EvalErr(n2, "path into atom".to_string())
     );
 }

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 /// `ObjectCache` provides a way to calculate and cache values for each node
 /// in a klvm object tree. It can be used to calculate the sha256 tree hash
 /// for an object and save the hash for all the child objects for building
@@ -14,7 +13,7 @@ type CachedFunction<T> = fn(&mut ObjectCache<T>, &Allocator, NodePtr) -> Option<
 use super::bytes32::{hash_blobs, Bytes32};
 
 pub struct ObjectCache<'a, T> {
-    cache: HashMap<NodePtr, T>,
+    cache: Vec<Option<T>>,
     allocator: &'a Allocator,
 
     /// The function `f` is expected to calculate its T value recursively based
@@ -27,10 +26,23 @@ pub struct ObjectCache<'a, T> {
     f: CachedFunction<T>,
 }
 
+/// turn a `NodePtr` into a `usize`. Positive values become even indices
+/// and negative values become odd indices.
+
+fn node_to_index(node: &NodePtr) -> usize {
+    let value = node.0;
+    if value < 0 {
+        (-value - value - 1) as usize
+    } else {
+        (value + value) as usize
+    }
+}
+
 impl<'a, T: Clone> ObjectCache<'a, T> {
     pub fn new(allocator: &'a Allocator, f: CachedFunction<T>) -> Self {
+        let cache = vec![];
         Self {
-            cache: HashMap::new(),
+            cache,
             allocator,
             f,
         }
@@ -45,12 +57,21 @@ impl<'a, T: Clone> ObjectCache<'a, T> {
 
     /// return the cached value for this node, or `None`
     fn get_from_cache(&self, node: &NodePtr) -> Option<&T> {
-        self.cache.get(node)
+        let index = node_to_index(node);
+        if index < self.cache.len() {
+            self.cache[index].as_ref()
+        } else {
+            None
+        }
     }
 
     /// set the cached value for a node
     fn set(&mut self, node: &NodePtr, v: T) {
-        self.cache.insert(*node, v);
+        let index = node_to_index(node);
+        if index >= self.cache.len() {
+            self.cache.resize(index + 1, None);
+        }
+        self.cache[index] = Some(v)
     }
 
     /// calculate the function's value for the given node, traversing uncached children
@@ -93,7 +114,7 @@ pub fn treehash(
                 .get_from_cache(&right)
                 .map(|right_value| hash_blobs(&[&[2], left_value, right_value])),
         },
-        SExp::Atom => Some(hash_blobs(&[&[1], allocator.atom(node).as_ref()])),
+        SExp::Atom => Some(hash_blobs(&[&[1], allocator.atom(node)])),
     }
 }
 
@@ -116,8 +137,8 @@ pub fn serialized_length(
         },
         SExp::Atom => {
             let buf = allocator.atom(node);
-            let lb: u64 = buf.as_ref().len().try_into().unwrap_or(u64::MAX);
-            Some(if lb == 0 || (lb == 1 && buf.as_ref()[0] < 128) {
+            let lb: u64 = buf.len().try_into().unwrap_or(u64::MAX);
+            Some(if lb == 0 || (lb == 1 && buf[0] < 128) {
                 1
             } else if lb < 0x40 {
                 1 + lb
@@ -234,6 +255,15 @@ fn test_serialized_length() {
     check("ff01ff02ff03ff04ff05ff0680", 13); // (1 2 3 4 5 6)
 }
 
+#[test]
+fn test_node_to_index() {
+    assert_eq!(node_to_index(&NodePtr(0)), 0);
+    assert_eq!(node_to_index(&NodePtr(1)), 2);
+    assert_eq!(node_to_index(&NodePtr(2)), 4);
+    assert_eq!(node_to_index(&NodePtr(-1)), 1);
+    assert_eq!(node_to_index(&NodePtr(-2)), 3);
+}
+
 // this test takes a very long time (>60s) in debug mode, so it only runs in release mode
 
 #[cfg(not(debug_assertions))]
@@ -245,7 +275,7 @@ fn test_very_long_list() {
 
     const LIST_SIZE: u64 = 20_000_000;
     let mut allocator = Allocator::new();
-    let mut top = allocator.nil();
+    let mut top = allocator.null();
     for _ in 0..LIST_SIZE {
         let atom = allocator.one();
         top = allocator.new_pair(atom, top).unwrap();

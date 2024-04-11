@@ -42,9 +42,7 @@ impl Dialect for RuntimeDialect {
         max_cost: Cost,
         _extensions: OperatorSet,
     ) -> Response {
-        let atom = allocator.atom(o);
-        let b = atom.as_ref();
-
+        let b = &allocator.atom(o);
         if b.len() == 1 {
             if let Some(f) = self.f_lookup[b[0] as usize] {
                 return f(allocator, argument_list, max_cost);
@@ -57,14 +55,16 @@ impl Dialect for RuntimeDialect {
         }
     }
 
-    fn quote_kw(&self) -> u32 {
-        self.quote_kw[0] as u32
+    fn quote_kw(&self) -> &[u8] {
+        &self.quote_kw
     }
-    fn apply_kw(&self) -> u32 {
-        self.apply_kw[0] as u32
+
+    fn apply_kw(&self) -> &[u8] {
+        &self.apply_kw
     }
-    fn softfork_kw(&self) -> u32 {
-        self.softfork_kw[0] as u32
+
+    fn softfork_kw(&self) -> &[u8] {
+        &self.softfork_kw
     }
 
     fn softfork_extension(&self, _ext: u32) -> OperatorSet {

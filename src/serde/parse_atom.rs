@@ -82,7 +82,7 @@ pub fn parse_atom(
     if first_byte == 0x01 {
         Ok(allocator.one())
     } else if first_byte == 0x80 {
-        Ok(allocator.nil())
+        Ok(allocator.null())
     } else {
         let blob = parse_atom_ptr(f, first_byte)?;
         Ok(allocator.new_atom(blob)?)
@@ -181,9 +181,9 @@ fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
     let mut allocator = Allocator::new();
     let atom_node = parse_atom(&mut allocator, first, &mut cursor).unwrap();
 
-    let atom = allocator.atom(atom_node);
+    let atom_ptr = allocator.atom(atom_node);
 
-    assert_eq!(expected_atom, atom.as_ref());
+    assert_eq!(expected_atom, atom_ptr);
 }
 
 #[cfg(test)]

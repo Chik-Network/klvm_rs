@@ -1,12 +1,12 @@
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use klvmr::allocator::{Allocator, NodePtr};
 use klvmr::chik_dialect::ChikDialect;
 use klvmr::serde::node_from_bytes;
+use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
 use std::fs::read_to_string;
 use std::time::Instant;
 
 fn long_strings(a: &mut Allocator) -> NodePtr {
-    let mut list = a.nil();
+    let mut list = a.null();
     for _i in 0..1000 {
         let item = a
             .new_atom(b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -14,7 +14,7 @@ fn long_strings(a: &mut Allocator) -> NodePtr {
         list = a.new_pair(item, list).expect("new_pair");
     }
 
-    a.new_pair(list, a.nil()).expect("new_pair")
+    a.new_pair(list, a.null()).expect("new_pair")
 }
 
 fn large_tree_impl(a: &mut Allocator, depth: i32) -> NodePtr {
@@ -37,11 +37,11 @@ fn long_string(a: &mut Allocator) -> NodePtr {
         atom.extend(b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
     }
     let item = a.new_atom(&atom[..]).expect("new_atom");
-    a.new_pair(item, a.nil()).expect("new_pair")
+    a.new_pair(item, a.null()).expect("new_pair")
 }
 
 fn tuple3<const N: i32, const K: i32>(a: &mut Allocator) -> NodePtr {
-    let list = a.nil();
+    let list = a.null();
     let item = a.new_number(K.into()).expect("new_atom");
     let list = a.new_pair(item, list).expect("new_pair");
     let item = a.new_number(N.into()).expect("new_atom");
@@ -51,7 +51,7 @@ fn tuple3<const N: i32, const K: i32>(a: &mut Allocator) -> NodePtr {
 }
 
 fn pair<const N: i32>(a: &mut Allocator) -> NodePtr {
-    let list = a.nil();
+    let list = a.null();
     let item = a.new_number(N.into()).expect("new_atom");
     let list = a.new_pair(item, list).expect("new_pair");
     let item = a
@@ -61,18 +61,18 @@ fn pair<const N: i32>(a: &mut Allocator) -> NodePtr {
 }
 
 fn single_value<const N: i32>(a: &mut Allocator) -> NodePtr {
-    let list = a.nil();
+    let list = a.null();
     let item = a.new_number(N.into()).expect("new_atom");
     a.new_pair(item, list).expect("new_pair")
 }
 
 fn generate_list<const N: i32>(a: &mut Allocator) -> NodePtr {
-    let mut list = a.nil();
+    let mut list = a.null();
     for _i in 0..N {
         let item = a.new_number(42.into()).expect("new_atom");
         list = a.new_pair(item, list).expect("new_pair");
     }
-    a.new_pair(list, a.nil()).expect("new_pair")
+    a.new_pair(list, a.null()).expect("new_pair")
 }
 
 fn large_block(a: &mut Allocator) -> NodePtr {
@@ -81,7 +81,7 @@ fn large_block(a: &mut Allocator) -> NodePtr {
         buffer.push((i & 0xff) as u8);
     }
 
-    let mut list = a.nil();
+    let mut list = a.null();
     for i in 0..1000 {
         let hex_key1 = hex::encode(&buffer[i..i + 32]);
         let hex_key2 = hex::encode(&buffer[i / 2..i / 2 + 32]);
@@ -118,13 +118,13 @@ ff83\
 }
 
 fn matrix<const W: i32, const H: i32>(a: &mut Allocator) -> NodePtr {
-    let mut args = a.nil();
+    let mut args = a.null();
 
     for _l in 0..2 {
-        let mut col = a.nil();
+        let mut col = a.null();
 
         for _k in 0..H {
-            let mut row = a.nil();
+            let mut row = a.null();
             for _i in 0..W {
                 let val = a.new_atom(b"ccba9401").expect("new_atom");
                 row = a.new_pair(val, row).expect("new_pair");
@@ -177,11 +177,11 @@ ffff01ffff33ffa06b7a83babea1eec790c947db4464ab657dbe9b887fe9acc2\
 }
 
 fn none(a: &mut Allocator) -> NodePtr {
-    a.nil()
+    a.null()
 }
 
 fn point_pow(a: &mut Allocator) -> NodePtr {
-    let list = a.nil();
+    let list = a.null();
     let item = a.new_number(1337.into()).expect("new_atom");
     let list = a.new_pair(item, list).expect("new_pair");
     let item = a.new_atom(&hex::decode("b3b8ac537f4fd6bde9b26221d49b54b17a506be147347dae5d081c0a6572b611d8484e338f3432971a9823976c6a232b").expect("invalid point hex")).expect("new_atom");
@@ -209,11 +209,11 @@ fn run_program_benchmark(c: &mut Criterion) {
         ("hash-string", long_strings),
         ("hash-tree", large_tree::<16>),
         ("large-block", large_block),
-        ("loop_add", single_value::<3675000>),
-        ("loop_ior", single_value::<3675000>),
-        ("loop_not", single_value::<3675000>),
-        ("loop_sub", single_value::<3675000>),
-        ("loop_xor", single_value::<3675000>),
+        ("loop_add", single_value::<4000000>),
+        ("loop_ior", single_value::<4000000>),
+        ("loop_not", single_value::<4000000>),
+        ("loop_sub", single_value::<4000000>),
+        ("loop_xor", single_value::<4000000>),
         ("matrix-multiply", matrix::<50, 50>),
         ("point-pow", point_pow),
         ("pubkey-tree", large_tree::<10>),

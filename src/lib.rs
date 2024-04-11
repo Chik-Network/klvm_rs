@@ -17,7 +17,13 @@ pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
 
-pub use allocator::{Allocator, Atom, NodePtr, SExp};
+pub mod from_node_ptr;
+pub mod to_node_ptr;
+
+pub use from_node_ptr::FromNodePtr;
+pub use to_node_ptr::ToNodePtr;
+
+pub use allocator::{Allocator, NodePtr};
 pub use chik_dialect::ChikDialect;
 pub use run_program::run_program;
 

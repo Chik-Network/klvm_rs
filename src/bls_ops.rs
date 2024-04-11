@@ -1,8 +1,8 @@
-use crate::allocator::{Allocator, Atom, NodePtr};
+use crate::allocator::{Allocator, NodePtr};
 use crate::cost::{check_cost, Cost};
 use crate::err_utils::err;
 use crate::op_utils::{
-    atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nilp, rest,
+    atom, first, get_args, get_varargs, int_atom, mod_group_order, new_atom_and_cost, nullp, rest,
     MALLOC_COST_PER_BYTE,
 };
 use crate::reduction::{EvalErr, Reduction, Response};
@@ -97,13 +97,12 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
     let blob = atom(a, point, "G1 atom")?;
     // this is here to validate the point
     let _g1 = G1Element::from_bytes(
-        blob.as_ref()
-            .try_into()
+        blob.try_into()
             .map_err(|_| EvalErr(point, "atom is not G1 size, 48 bytes".to_string()))?,
     )
     .map_err(|_| EvalErr(point, "atom is not a valid G1 point".to_string()))?;
 
-    if (blob.as_ref()[0] & 0xe0) == 0xc0 {
+    if (blob[0] & 0xe0) == 0xc0 {
         // This is compressed infinity. negating it is a no-op
         // we can just pass through the same atom as we received. We'll charge
         // the allocation cost anyway, for consistency
@@ -112,7 +111,7 @@ pub fn op_bls_g1_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
             point,
         ))
     } else {
-        let mut blob: [u8; 48] = blob.as_ref().try_into().unwrap();
+        let mut blob: [u8; 48] = blob.try_into().unwrap();
         blob[0] ^= 0x20;
         new_atom_and_cost(a, BLS_G1_NEGATE_BASE_COST, &blob)
     }
@@ -183,13 +182,11 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
 
     // we don't validate the point. We may want to soft fork-in validating the
     // point once the allocator preserves native representation of points
-    let blob_atom = atom(a, point, "G2 atom")?;
-    let blob = blob_atom.as_ref();
+    let blob = atom(a, point, "G2 atom")?;
 
     // this is here to validate the point
     let _g2 = G2Element::from_bytes(
-        blob.as_ref()
-            .try_into()
+        blob.try_into()
             .map_err(|_| EvalErr(point, "atom is not G2 size, 96 bytes".to_string()))?,
     )
     .map_err(|_| EvalErr(point, "atom is not a valid G2 point".to_string()))?;
@@ -203,7 +200,7 @@ pub fn op_bls_g2_negate(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> R
             point,
         ))
     } else {
-        let mut blob: [u8; 96] = blob.as_ref().try_into().unwrap();
+        let mut blob: [u8; 96] = blob.try_into().unwrap();
         blob[0] ^= 0x20;
         new_atom_and_cost(a, BLS_G2_NEGATE_BASE_COST, &blob)
     }
@@ -218,19 +215,19 @@ pub fn op_bls_map_to_g1(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     check_cost(a, cost, max_cost)?;
 
     let msg = atom(a, msg, "g1_map")?;
-    cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G1_COST_PER_BYTE;
+    cost += msg.len() as Cost * BLS_MAP_TO_G1_COST_PER_BYTE;
     check_cost(a, cost, max_cost)?;
 
-    let dst = if argc == 2 {
+    let dst: &[u8] = if argc == 2 {
         atom(a, dst, "g1_map")?
     } else {
-        Atom::Borrowed(b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_".as_slice())
+        b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_AUG_"
     };
 
-    cost += dst.as_ref().len() as Cost * BLS_MAP_TO_G1_COST_PER_DST_BYTE;
+    cost += dst.len() as Cost * BLS_MAP_TO_G1_COST_PER_DST_BYTE;
     check_cost(a, cost, max_cost)?;
 
-    let point = hash_to_g1_with_dst(msg.as_ref(), dst.as_ref());
+    let point = hash_to_g1_with_dst(msg, dst);
     Ok(Reduction(
         cost + 48 * MALLOC_COST_PER_BYTE,
         a.new_g1(point)?,
@@ -246,18 +243,18 @@ pub fn op_bls_map_to_g2(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Re
     check_cost(a, cost, max_cost)?;
 
     let msg = atom(a, msg, "g2_map")?;
-    cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
+    cost += msg.len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
 
-    let dst = if argc == 2 {
+    let dst: &[u8] = if argc == 2 {
         atom(a, dst, "g2_map")?
     } else {
-        Atom::Borrowed(DST_G2.as_slice())
+        DST_G2
     };
 
-    cost += dst.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
+    cost += dst.len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
     check_cost(a, cost, max_cost)?;
 
-    let point = hash_to_g2_with_dst(msg.as_ref(), dst.as_ref());
+    let point = hash_to_g2_with_dst(msg, dst);
     Ok(Reduction(
         cost + 96 * MALLOC_COST_PER_BYTE,
         a.new_g2(point)?,
@@ -275,7 +272,7 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     let mut items = Vec::<(G1Element, G2Element)>::new();
 
     let mut args = input;
-    while !nilp(a, args) {
+    while !nullp(a, args) {
         cost += BLS_PAIRING_COST_PER_ARG;
         check_cost(a, cost, max_cost)?;
         let g1 = a.g1(first(a, args)?)?;
@@ -288,7 +285,7 @@ pub fn op_bls_pairing_identity(a: &mut Allocator, input: NodePtr, max_cost: Cost
     if !aggregate_pairing(items) {
         err(input, "bls_pairing_identity failed")
     } else {
-        Ok(Reduction(cost, a.nil()))
+        Ok(Reduction(cost, a.null()))
     }
 }
 
@@ -308,15 +305,15 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     // followed by a variable number of (G1, msg)-pairs (as a flat list)
     args = rest(a, args)?;
 
-    let mut items = Vec::<(PublicKey, Atom)>::new();
-    while !nilp(a, args) {
+    let mut items = Vec::<(PublicKey, &[u8])>::new();
+    while !nullp(a, args) {
         let pk = a.g1(first(a, args)?)?;
         args = rest(a, args)?;
         let msg = atom(a, first(a, args)?, "bls_verify message")?;
         args = rest(a, args)?;
 
         cost += BLS_PAIRING_COST_PER_ARG;
-        cost += msg.as_ref().len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
+        cost += msg.len() as Cost * BLS_MAP_TO_G2_COST_PER_BYTE;
         cost += DST_G2.len() as Cost * BLS_MAP_TO_G2_COST_PER_DST_BYTE;
         check_cost(a, cost, max_cost)?;
 
@@ -326,6 +323,6 @@ pub fn op_bls_verify(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Respo
     if !aggregate_verify(&signature, items) {
         err(input, "bls_verify failed")
     } else {
-        Ok(Reduction(cost, a.nil()))
+        Ok(Reduction(cost, a.null()))
     }
 }

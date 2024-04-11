@@ -70,8 +70,8 @@ impl Dialect for ChikDialect {
         max_cost: Cost,
         extension: OperatorSet,
     ) -> Response {
-        let op_len = allocator.atom_len(o);
-        if op_len == 4 {
+        let b = allocator.atom(o);
+        if b.len() == 4 {
             // these are unkown operators with assigned cost
             // the formula is:
             // +---+---+---+------------+
@@ -83,8 +83,7 @@ impl Dialect for ChikDialect {
             // (3 bytes)    + 2 bits
             //                cost_function
 
-            let b = allocator.atom(o);
-            let opcode = u32::from_be_bytes(b.as_ref().try_into().unwrap());
+            let opcode = u32::from_be_bytes(b.try_into().unwrap());
 
             // the secp operators have a fixed cost of 1850000 and 1300000,
             // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
@@ -98,13 +97,10 @@ impl Dialect for ChikDialect {
             };
             return f(allocator, argument_list, max_cost);
         }
-        if op_len != 1 {
+        if b.len() != 1 {
             return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
         }
-        let Some(op) = allocator.small_number(o) else {
-            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
-        };
-        let f = match op {
+        let f = match b[0] {
             // 1 = quote
             // 2 = apply
             3 => op_if,
@@ -150,7 +146,7 @@ impl Dialect for ChikDialect {
             _ => {
                 if extension == OperatorSet::BLS || (self.flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0
                 {
-                    match op {
+                    match b[0] {
                         48 => op_coinid,
                         49 => op_bls_g1_subtract,
                         50 => op_bls_g1_multiply,
@@ -183,14 +179,16 @@ impl Dialect for ChikDialect {
         f(allocator, argument_list, max_cost)
     }
 
-    fn quote_kw(&self) -> u32 {
-        1
+    fn quote_kw(&self) -> &[u8] {
+        &[1]
     }
-    fn apply_kw(&self) -> u32 {
-        2
+
+    fn apply_kw(&self) -> &[u8] {
+        &[2]
     }
-    fn softfork_kw(&self) -> u32 {
-        36
+
+    fn softfork_kw(&self) -> &[u8] {
+        &[36]
     }
 
     // interpret the extension argument passed to the softfork operator, and

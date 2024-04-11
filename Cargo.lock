@@ -110,26 +110,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chik-bls"
-version = "0.3.3"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6baaae360f92f96a6def5ac17776de081b62f531c4e02e958435ece0a6ccccb"
-dependencies = [
- "anyhow",
- "arbitrary",
- "blst",
- "chik-traits",
- "hex",
- "hkdf",
- "sha2",
- "thiserror",
- "tiny-bip39",
-]
-
-[[package]]
-name = "chik-bls"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d0035be195b06117387b0563c18b3cf8c6d6147195fb95cec84db1b795ed516"
+checksum = "f1b9a20e215396750669b2f2e973cf05899ae0ee48aba589ec1543e72d68d886"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -144,9 +127,9 @@ dependencies = [
 
 [[package]]
 name = "chik-traits"
-version = "0.3.3"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9494cd388c3220d6b0eee8c1f902d1390b93d8acda8be0f5ef4c93c824d4df8"
+checksum = "f2927c50ef65e2682cfa0ccf8868eb701696ce15fa3fe54a686f2355d6c1f7ae"
 dependencies = [
  "chik_streamable_macro",
  "hex",
@@ -750,7 +733,7 @@ dependencies = [
 name = "klvm-rs-test-tools"
 version = "0.1.0"
 dependencies = [
- "chik-bls 0.3.3",
+ "chik-bls",
  "clap",
  "hex",
  "hex-literal",
@@ -764,8 +747,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "klvm-traits"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a572db8887b938cf6861a66548c900cb69842043d5ea2776a35fdf1ba2770af"
+dependencies = [
+ "num-bigint",
+ "thiserror",
+]
+
+[[package]]
 name = "klvm_rs"
-version = "0.6.0"
+version = "0.3.2"
 dependencies = [
  "klvmr",
  "pyo3",
@@ -792,12 +785,13 @@ dependencies = [
 
 [[package]]
 name = "klvmr"
-version = "0.6.0"
+version = "0.3.3"
 dependencies = [
- "chik-bls 0.4.0",
+ "chik-bls",
  "criterion",
  "hex",
  "k256",
+ "klvm-traits",
  "lazy_static",
  "num-bigint",
  "num-integer",

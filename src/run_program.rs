@@ -1,9 +1,9 @@
-use super::traverse_path::{traverse_path, traverse_path_fast};
-use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
+use super::traverse_path::traverse_path;
+use crate::allocator::{Allocator, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
-use crate::op_utils::{first, get_args, uint_atom};
+use crate::op_utils::{atom, first, get_args, uint_atom};
 use crate::reduction::{EvalErr, Reduction, Response};
 
 // lowered from 46
@@ -44,7 +44,6 @@ pub struct Counters {
     pub env_stack_usage: usize,
     pub op_stack_usage: usize,
     pub atom_count: u32,
-    pub small_atom_count: u32,
     pub pair_count: u32,
     pub heap_size: u32,
 }
@@ -57,7 +56,6 @@ impl Counters {
             env_stack_usage: 0,
             op_stack_usage: 0,
             atom_count: 0,
-            small_atom_count: 0,
             pair_count: 0,
             heap_size: 0,
         }
@@ -154,7 +152,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
-                let node: NodePtr = self.allocator.nil();
+                let node: NodePtr = self.allocator.null();
                 err(node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
@@ -230,8 +228,9 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         operand_list: NodePtr,
         env: NodePtr,
     ) -> Result<Cost, EvalErr> {
+        let op_atom = self.allocator.atom(operator_node);
         // special case check for quote
-        if self.allocator.small_number(operator_node) == Some(self.dialect.quote_kw()) {
+        if op_atom == self.dialect.quote_kw() {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
@@ -257,11 +256,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.push(first)?;
                 operands = rest;
             }
-            // ensure a correct nil terminator
-            if self.allocator.atom_len(operands) != 0 {
+            // ensure a correct null terminator
+            if !self.allocator.atom(operands).is_empty() {
                 err(operand_list, "bad operand list")
             } else {
-                self.push(self.allocator.nil())?;
+                self.push(self.allocator.null())?;
                 Ok(OP_COST)
             }
         }
@@ -277,17 +276,16 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         };
 
         // put a bunch of ops on op_stack
-        let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
+        let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the env tree
-            let r = match self.allocator.node(program) {
-                NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
-                NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
-                NodeVisitor::Pair(_, _) => {
-                    panic!("expected atom, got pair");
-                }
-            };
-            self.push(r.1)?;
-            return Ok(r.0);
+            SExp::Atom => {
+                let r: Reduction =
+                    traverse_path(self.allocator, self.allocator.atom(program), env)?;
+                self.push(r.1)?;
+                return Ok(r.0);
+            }
+            // the program is an operator and a list of operands
+            SExp::Pair(operator_node, operand_list) => (operator_node, operand_list),
         };
 
         match self.allocator.sexp(op_node) {
@@ -346,15 +344,14 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
+        let op_atom = atom(self.allocator, operator, "(internal error) apply")?;
         if self.env_stack.pop().is_none() {
             return err(operator, "runtime error: env stack empty");
         }
-        let op_atom = self.allocator.small_number(operator);
-
-        if op_atom == Some(self.dialect.apply_kw()) {
+        if op_atom == self.dialect.apply_kw() {
             let [new_operator, env] = get_args::<2>(self.allocator, operand_list, "apply")?;
             self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)
-        } else if op_atom == Some(self.dialect.softfork_kw()) {
+        } else if op_atom == self.dialect.softfork_kw() {
             let expected_cost = uint_atom::<8>(
                 self.allocator,
                 first(self.allocator, operand_list)?,
@@ -377,7 +374,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                         // that doesn't pass the correct arguments.
                         // if we're in consensus mode, we have to accept this as
                         // something we don't understand
-                        self.push(self.allocator.nil())?;
+                        self.push(self.allocator.null())?;
                         return Ok(expected_cost);
                     }
                     return Err(err);
@@ -431,22 +428,22 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return err(self.allocator.nil(), "softfork specified cost mismatch");
+            return err(self.allocator.null(), "softfork specified cost mismatch");
         }
 
         // restore the allocator to the state when we entered the softfork guard
         // This is an optimization to reclaim all heap space allocated by the
-        // softfork program. Since the softfork always return nil, no value can
+        // softfork program. Since the softfork always return null, no value can
         // escape the softfork program, and it's therefore safe to restore the
         // heap
         self.allocator.restore_checkpoint(&guard.allocator_state);
 
-        // the softfork always returns nil, pop the value pushed by the
-        // evaluation of the program and push nil instead
+        // the softfork always returns null, pop the value pushed by the
+        // evaluation of the program and push null instead
         self.pop()
             .expect("internal error, softfork program did not push value onto stack");
 
-        self.push(self.allocator.nil())?;
+        self.push(self.allocator.null())?;
 
         Ok(0)
     }
@@ -539,7 +536,6 @@ pub fn run_program_with_counters<'a, D: Dialect>(
     let mut rpc = RunProgramContext::new(allocator, dialect);
     let ret = rpc.run_program(program, env, max_cost);
     rpc.counters.atom_count = rpc.allocator.atom_count() as u32;
-    rpc.counters.small_atom_count = rpc.allocator.small_atom_count() as u32;
     rpc.counters.pair_count = rpc.allocator.pair_count() as u32;
     rpc.counters.heap_size = rpc.allocator.heap_size() as u32;
     (rpc.counters, ret)
@@ -1340,10 +1336,9 @@ fn test_counters() {
     assert_eq!(counters.val_stack_usage, 3015);
     assert_eq!(counters.env_stack_usage, 1005);
     assert_eq!(counters.op_stack_usage, 3014);
-    assert_eq!(counters.atom_count, 998);
-    assert_eq!(counters.small_atom_count, 1042);
+    assert_eq!(counters.atom_count, 2040);
     assert_eq!(counters.pair_count, 22077);
-    assert_eq!(counters.heap_size, 769963);
+    assert_eq!(counters.heap_size, 771884);
 
     assert_eq!(result.unwrap().0, cost);
 }
