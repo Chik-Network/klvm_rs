@@ -6,8 +6,8 @@ use std::io::Cursor;
 use super::object_cache::{serialized_length, treehash, ObjectCache};
 use super::read_cache_lookup::ReadCacheLookup;
 use super::write_atom::write_atom;
-use crate::allocator::{Allocator, NodePtr, SExp};
-use crate::serde::ser::LimitedWriter;
+use crate::allocator::{NodePtr, SExp};
+use crate::node::Node;
 
 const BACK_REFERENCE: u8 = 0xfe;
 const CONS_BOX_MARKER: u8 = 0xff;
@@ -25,20 +25,19 @@ enum ReadOp {
 // print(bytes(a).hex())
 // print(a.get_tree_hash().hex())
 
-pub fn node_to_stream_backrefs<W: io::Write>(
-    allocator: &Allocator,
-    node: NodePtr,
-    f: &mut W,
-) -> io::Result<()> {
+pub fn node_to_stream_backrefs<W: io::Write>(node: &Node, f: &mut W) -> io::Result<()> {
+    let allocator = node.allocator;
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
-    let mut write_stack: Vec<NodePtr> = vec![node];
+    let mut write_stack: Vec<NodePtr> = vec![node.node];
 
     let mut read_cache_lookup = ReadCacheLookup::new();
 
     let mut thc = ObjectCache::new(allocator, treehash);
     let mut slc = ObjectCache::new(allocator, serialized_length);
 
-    while let Some(node_to_write) = write_stack.pop() {
+    while !write_stack.is_empty() {
+        let node_to_write = write_stack.pop().expect("write_stack empty");
+
         let op = read_op_stack.pop();
         assert!(op == Some(ReadOp::Parse));
 
@@ -63,9 +62,9 @@ pub fn node_to_stream_backrefs<W: io::Write>(
                     read_op_stack.push(ReadOp::Parse);
                     read_op_stack.push(ReadOp::Parse);
                 }
-                SExp::Atom => {
-                    let atom = allocator.atom(node_to_write);
-                    write_atom(f, atom.as_ref())?;
+                SExp::Atom(atom_buf) => {
+                    let atom = allocator.buf(&atom_buf);
+                    write_atom(f, atom)?;
                     read_cache_lookup.push(*node_tree_hash);
                 }
             },
@@ -78,48 +77,10 @@ pub fn node_to_stream_backrefs<W: io::Write>(
     Ok(())
 }
 
-pub fn node_to_bytes_backrefs_limit(
-    a: &Allocator,
-    node: NodePtr,
-    limit: usize,
-) -> io::Result<Vec<u8>> {
-    let buffer = Cursor::new(Vec::new());
-    let mut writer = LimitedWriter::new(buffer, limit);
-    node_to_stream_backrefs(a, node, &mut writer)?;
-    let vec = writer.into_inner().into_inner();
-    Ok(vec)
-}
-
-pub fn node_to_bytes_backrefs(a: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+pub fn node_to_bytes_backrefs(node: &Node) -> io::Result<Vec<u8>> {
     let mut buffer = Cursor::new(Vec::new());
-    node_to_stream_backrefs(a, node, &mut buffer)?;
+
+    node_to_stream_backrefs(node, &mut buffer)?;
     let vec = buffer.into_inner();
     Ok(vec)
-}
-
-#[test]
-fn test_serialize_limit() {
-    let mut a = Allocator::new();
-
-    let leaf = a.new_atom(&[1, 2, 3, 4, 5]).unwrap();
-    let l1 = a.new_pair(leaf, leaf).unwrap();
-    let l2 = a.new_pair(l1, l1).unwrap();
-    let l3 = a.new_pair(l2, l2).unwrap();
-
-    let expected = &[255, 255, 255, 133, 1, 2, 3, 4, 5, 254, 2, 254, 2, 254, 2];
-
-    {
-        assert_eq!(node_to_bytes_backrefs(&a, l3).unwrap(), expected);
-    }
-
-    {
-        assert_eq!(node_to_bytes_backrefs_limit(&a, l3, 15).unwrap(), expected);
-    }
-
-    {
-        assert_eq!(
-            node_to_bytes_backrefs_limit(&a, l3, 14).unwrap_err().kind(),
-            io::ErrorKind::OutOfMemory
-        );
-    }
 }

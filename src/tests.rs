@@ -1,20 +1,31 @@
-use super::allocator::{Allocator, NodePtr};
+use super::allocator::{Allocator, NodePtr, SExp};
+use super::node::Node;
 use super::serde::node_from_bytes;
 use super::serde::node_to_bytes;
 
-#[cfg(test)]
-use super::test_ops::node_eq;
+impl<'a> PartialEq for Node<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.sexp(), other.sexp()) {
+            (SExp::Pair(l0, l1), SExp::Pair(r0, r1)) => {
+                self.with_node(l0) == self.with_node(r0) && self.with_node(l1) == self.with_node(r1)
+            }
+            (SExp::Atom(l0), SExp::Atom(r0)) => self.allocator.buf(&l0) == self.allocator.buf(&r0),
+            _ => false,
+        }
+    }
+}
 
 fn test_serialize_roundtrip(a: &mut Allocator, n: NodePtr) {
-    let vec = node_to_bytes(a, n).unwrap();
+    let vec = node_to_bytes(&Node::new(a, n.clone())).unwrap();
     let n0 = node_from_bytes(a, &vec).unwrap();
-    assert!(node_eq(a, n, n0));
+    let n1 = Node::new(a, n0);
+    assert_eq!(Node::new(a, n), n1);
 }
 
 #[test]
 fn test_roundtrip() {
     let mut a = Allocator::new();
-    let n = a.nil();
+    let n = a.null();
     test_serialize_roundtrip(&mut a, n);
 
     let n = a.one();
@@ -34,19 +45,20 @@ fn test_roundtrip() {
     }
 
     // large blob
-    let buf = vec![0; 1000000];
+    let mut buf = Vec::<u8>::new();
+    buf.resize(1000000, 0_u8);
     let n = a.new_atom(&buf).unwrap();
     test_serialize_roundtrip(&mut a, n);
 
     // deep tree
-    let mut prev = a.nil();
+    let mut prev = a.null();
     for _ in 0..=4000 {
         prev = a.new_pair(a.one(), prev).unwrap();
     }
     test_serialize_roundtrip(&mut a, prev);
 
     // deep reverse tree
-    let mut prev = a.nil();
+    let mut prev = a.null();
     for _ in 0..=4000 {
         let n = a.one();
         prev = a.new_pair(prev, n).unwrap();
@@ -58,27 +70,33 @@ fn test_roundtrip() {
 fn test_serialize_blobs() {
     let mut a = Allocator::new();
 
-    // nil
-    let n = a.nil();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x80]);
+    // null
+    let n = Node::new(&a, a.null());
+    assert_eq!(node_to_bytes(&n).unwrap(), &[0x80]);
 
     // one
-    let n = a.one();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[1]);
+    let n = Node::new(&a, a.one());
+    assert_eq!(node_to_bytes(&n).unwrap(), &[1]);
 
     // single byte
-    let n = a.new_atom(&[128]).unwrap();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x81, 128]);
+    let atom = a.new_atom(&[128]).unwrap();
+    let n = Node::new(&a, atom);
+    assert_eq!(node_to_bytes(&n).unwrap(), &[0x81, 128]);
+    let n = n.node;
     test_serialize_roundtrip(&mut a, n);
 
     // two bytes
-    let n = a.new_atom(&[0x10, 0xff]).unwrap();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x82, 0x10, 0xff]);
+    let atom = a.new_atom(&[0x10, 0xff]).unwrap();
+    let n = Node::new(&a, atom);
+    assert_eq!(node_to_bytes(&n).unwrap(), &[0x82, 0x10, 0xff]);
+    let n = n.node;
     test_serialize_roundtrip(&mut a, n);
 
     // three bytes
-    let n = a.new_atom(&[0xff, 0x10, 0xff]).unwrap();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x83, 0xff, 0x10, 0xff]);
+    let atom = a.new_atom(&[0xff, 0x10, 0xff]).unwrap();
+    let n = Node::new(&a, atom);
+    assert_eq!(node_to_bytes(&n).unwrap(), &[0x83, 0xff, 0x10, 0xff]);
+    let n = n.node;
     test_serialize_roundtrip(&mut a, n);
 }
 
@@ -86,23 +104,26 @@ fn test_serialize_blobs() {
 fn test_serialize_lists() {
     let mut a = Allocator::new();
 
-    // nil
-    let n = a.nil();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0x80]);
+    // null
+    let n = a.null();
+    assert_eq!(node_to_bytes(&Node::new(&a, n)).unwrap(), &[0x80]);
 
     // one item
     let n = a.new_pair(a.one(), n).unwrap();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0xff, 1, 0x80]);
+    assert_eq!(node_to_bytes(&Node::new(&a, n)).unwrap(), &[0xff, 1, 0x80]);
 
     // two items
     let n = a.new_pair(a.one(), n).unwrap();
-    assert_eq!(node_to_bytes(&a, n).unwrap(), &[0xff, 1, 0xff, 1, 0x80]);
+    assert_eq!(
+        node_to_bytes(&Node::new(&a, n)).unwrap(),
+        &[0xff, 1, 0xff, 1, 0x80]
+    );
     test_serialize_roundtrip(&mut a, n);
 
     // three items
     let n = a.new_pair(a.one(), n).unwrap();
     assert_eq!(
-        node_to_bytes(&a, n).unwrap(),
+        node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 1, 0xff, 1, 0xff, 1, 0x80]
     );
     test_serialize_roundtrip(&mut a, n);
@@ -113,7 +134,7 @@ fn test_serialize_lists() {
     let n = a.new_pair(n, a.one()).unwrap();
     let n = a.new_pair(n, a.one()).unwrap();
     assert_eq!(
-        node_to_bytes(&a, n).unwrap(),
+        node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 0xff, 0xff, 1, 1, 1, 1]
     );
     test_serialize_roundtrip(&mut a, n);
@@ -131,7 +152,7 @@ fn test_serialize_tree() {
     let r = a.new_pair(a3, a4).unwrap();
     let n = a.new_pair(l, r).unwrap();
     assert_eq!(
-        node_to_bytes(&a, n).unwrap(),
+        node_to_bytes(&Node::new(&a, n)).unwrap(),
         &[0xff, 0xff, 1, 2, 0xff, 3, 4]
     );
     test_serialize_roundtrip(&mut a, n);

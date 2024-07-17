@@ -41,65 +41,68 @@ fn test_node_from_number() {
     let num = number_from_u8(&[0]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "0");
-    assert_eq!(a.atom(ptr).as_ref().len(), 0);
+    assert_eq!(a.atom(ptr).len(), 0);
 
     let num = number_from_u8(&[1]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "1");
-    assert_eq!(&[1], &a.atom(ptr).as_ref());
+    assert_eq!(&[1], &a.atom(ptr));
 
     // leading zeroes are redundant
     let num = number_from_u8(&[0, 0, 0, 1]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "1");
-    assert_eq!(&[1], &a.atom(ptr).as_ref());
+    assert_eq!(&[1], &a.atom(ptr));
 
     let num = number_from_u8(&[0x00, 0x00, 0x80]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "128");
-    assert_eq!(&[0x00, 0x80], &a.atom(ptr).as_ref());
+    assert_eq!(&[0x00, 0x80], &a.atom(ptr));
 
     // A leading zero is necessary to encode a positive number with the
     // penultimate byte's most significant bit set
     let num = number_from_u8(&[0x00, 0xff]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "255");
-    assert_eq!(&[0x00, 0xff], &a.atom(ptr).as_ref());
+    assert_eq!(&[0x00, 0xff], &a.atom(ptr));
 
     let num = number_from_u8(&[0x7f, 0xff]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "32767");
-    assert_eq!(&[0x7f, 0xff], &a.atom(ptr).as_ref());
+    assert_eq!(&[0x7f, 0xff], &a.atom(ptr));
 
     // the first byte is redundant, it's still -1
     let num = number_from_u8(&[0xff, 0xff]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "-1");
-    assert_eq!(&[0xff], &a.atom(ptr).as_ref());
+    assert_eq!(&[0xff], &a.atom(ptr));
 
     let num = number_from_u8(&[0xff]);
     let ptr = node_from_number(&mut a, &num).unwrap();
     assert_eq!(format!("{}", num), "-1");
-    assert_eq!(&[0xff], &a.atom(ptr).as_ref());
+    assert_eq!(&[0xff], &a.atom(ptr));
 
     let num = number_from_u8(&[0x00, 0x80, 0x00]);
     assert_eq!(format!("{}", num), "32768");
     let ptr = node_from_number(&mut a, &num).unwrap();
-    assert_eq!(&[0x00, 0x80, 0x00], &a.atom(ptr).as_ref());
+    assert_eq!(&[0x00, 0x80, 0x00], &a.atom(ptr));
 
     let num = number_from_u8(&[0x00, 0x40, 0x00]);
     assert_eq!(format!("{}", num), "16384");
     let ptr = node_from_number(&mut a, &num).unwrap();
-    assert_eq!(&[0x40, 0x00], &a.atom(ptr).as_ref());
+    assert_eq!(&[0x40, 0x00], &a.atom(ptr));
 }
 
 #[cfg(test)]
 use num_bigint::{BigUint, Sign};
 
 #[cfg(test)]
+use std::convert::TryFrom;
+
+#[cfg(test)]
 fn roundtrip_bytes(b: &[u8]) {
-    let negative = !b.is_empty() && (b[0] & 0x80) != 0;
-    let zero = b.is_empty() || (b.len() == 1 && b[0] == 0);
+    let negative = b.len() > 0 && (b[0] & 0x80) != 0;
+    let zero = b.len() == 0 || (b.len() == 1 && b[0] == 0);
 
     {
         let num = Number::from_signed_bytes_be(b);
@@ -115,7 +118,7 @@ fn roundtrip_bytes(b: &[u8]) {
         let round_trip = num.to_signed_bytes_be();
         // num-bigin produces a single 0 byte for the value 0. We expect an
         // empty array
-        let round_trip = if round_trip == [0] {
+        let round_trip = if round_trip == &[0] {
             &round_trip[1..]
         } else {
             &round_trip
@@ -128,7 +131,7 @@ fn roundtrip_bytes(b: &[u8]) {
 
         // there's a special case for empty input buffers, which will result in
         // a single 0 byte here
-        if b.is_empty() {
+        if b == &[] {
             assert_eq!(buf_le, &[0]);
             buf_le.remove(0);
         }
@@ -141,7 +144,7 @@ fn roundtrip_bytes(b: &[u8]) {
         // equal.
         // the 0 prefix has to be added to the end though, since it's little
         // endian
-        if !buf_le.is_empty() && (buf_le.last().unwrap() & 0x80) != 0 {
+        if buf_le.len() > 0 && (buf_le.last().unwrap() & 0x80) != 0 {
             buf_le.push(0);
         }
 
@@ -159,12 +162,12 @@ fn roundtrip_bytes(b: &[u8]) {
         let unsigned_num: Number = BigUint::from_bytes_be(b).into();
         assert!(unsigned_num.sign() != Sign::Minus);
         let unsigned_round_trip = unsigned_num.to_signed_bytes_be();
-        let unsigned_round_trip = if unsigned_round_trip == [0] {
+        let unsigned_round_trip = if unsigned_round_trip == &[0] {
             &unsigned_round_trip[1..]
         } else {
             &unsigned_round_trip
         };
-        if !b.is_empty() && (b[0] & 0x80) != 0 {
+        if b.len() > 0 && (b[0] & 0x80) != 0 {
             // we expect a new leading zero here, to keep the value positive
             assert!(unsigned_round_trip[0] == 0);
             assert_eq!(&unsigned_round_trip[1..], b);
@@ -254,14 +257,13 @@ fn test_round_trip_u64() {
 
 #[cfg(test)]
 fn roundtrip_i64(v: i64) {
-    use std::cmp::Ordering;
-
     let num: Number = v.into();
-
-    match v.cmp(&0) {
-        Ordering::Equal => assert!(num.sign() == Sign::NoSign),
-        Ordering::Less => assert!(num.sign() == Sign::Minus),
-        Ordering::Greater => assert!(num.sign() == Sign::Plus),
+    if v == 0 {
+        assert!(num.sign() == Sign::NoSign);
+    } else if v < 0 {
+        assert!(num.sign() == Sign::Minus);
+    } else if v > 0 {
+        assert!(num.sign() == Sign::Plus);
     }
 
     assert!(num.bits() <= 64);

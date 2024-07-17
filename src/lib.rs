@@ -7,23 +7,21 @@ pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
 pub mod more_ops;
+pub mod node;
 pub mod number;
 pub mod op_utils;
 pub mod reduction;
 pub mod run_program;
 pub mod runtime_dialect;
-pub mod secp_ops;
 pub mod serde;
 pub mod sha2;
 pub mod traverse_path;
 
-pub use allocator::{Allocator, Atom, NodePtr, SExp};
+pub use allocator::Allocator;
 pub use chik_dialect::ChikDialect;
 pub use run_program::run_program;
 
-pub use chik_dialect::{
-    ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
-};
+pub use chik_dialect::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;

@@ -8,12 +8,11 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
-    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
+    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use crate::number::Number;
 use crate::reduction::{EvalErr, Reduction, Response};
-use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 use hex::FromHex;
 use num_traits::Num;
@@ -22,31 +21,31 @@ use std::collections::HashMap;
 
 fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     if v == "0" {
-        return a.nil();
+        return a.null();
     }
 
-    assert!(!v.is_empty());
+    assert!(v.len() > 0);
 
     if v.starts_with("0x") {
         let buf = Vec::from_hex(v.strip_prefix("0x").unwrap()).unwrap();
         return a.new_atom(&buf).unwrap();
     }
 
-    if v.starts_with('\"') {
-        assert!(v.ends_with('\"'));
+    if v.starts_with("\"") {
+        assert!(v.ends_with("\""));
         let buf = v
-            .strip_prefix('\"')
+            .strip_prefix("\"")
             .unwrap()
-            .strip_suffix('\"')
+            .strip_suffix("\"")
             .unwrap()
             .as_bytes();
-        return a.new_atom(buf).unwrap();
+        return a.new_atom(&buf).unwrap();
     }
 
     if let Ok(num) = Number::from_str_radix(v, 10) {
         a.new_number(num).unwrap()
     } else {
-        let v = v.strip_prefix('#').unwrap_or(v);
+        let v = if v.starts_with("#") { &v[1..] } else { v };
         match v {
             "q" => a.new_atom(&[1]).unwrap(),
             "a" => a.new_atom(&[2]).unwrap(),
@@ -99,8 +98,6 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
             "g2_map" => a.new_atom(&[57]).unwrap(),
             "bls_pairing_identity" => a.new_atom(&[58]).unwrap(),
             "bls_verify" => a.new_atom(&[59]).unwrap(),
-            "secp256k1_verify" => a.new_atom(&[0x13, 0xd6, 0x1f, 0x00]).unwrap(),
-            "secp256r1_verify" => a.new_atom(&[0x1c, 0x3a, 0x8f, 0x00]).unwrap(),
             _ => {
                 panic!("atom not supported \"{}\"", v);
             }
@@ -108,24 +105,24 @@ fn parse_atom(a: &mut Allocator, v: &str) -> NodePtr {
     }
 }
 
-fn pop_token(s: &str) -> (&str, &str) {
+fn pop_token<'a>(s: &'a str) -> (&'a str, &'a str) {
     let s = s.trim();
-    if let Some(stripped) = s.strip_prefix('\"') {
-        if let Some(second_quote) = stripped.find('\"') {
+    if s.starts_with("\"") {
+        if let Some(second_quote) = &s[1..].find("\"") {
             let (first, rest) = s.split_at(second_quote + 2);
             (first.trim(), rest.trim())
         } else {
             panic!("mismatching quote")
         }
-    } else if s.starts_with('(') || s.starts_with(')') {
+    } else if s.starts_with("(") || s.starts_with(")") {
         let (first, rest) = s.split_at(1);
         (first, rest.trim())
     } else {
         let space = s.find(' ');
         let close = s.find(')');
 
-        let split_pos = if let (Some(space_pos), Some(close_pos)) = (space, close) {
-            min(space_pos, close_pos)
+        let split_pos = if space.is_some() && close.is_some() {
+            min(space.unwrap(), close.unwrap())
         } else if let Some(pos) = space {
             pos
         } else if let Some(pos) = close {
@@ -142,11 +139,11 @@ fn pop_token(s: &str) -> (&str, &str) {
 pub fn parse_list<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     let v = v.trim();
     let (first, rest) = pop_token(v);
-    if first.is_empty() {
-        return (a.nil(), rest);
+    if first.len() == 0 {
+        return (a.null(), rest);
     }
     if first == ")" {
-        return (a.nil(), rest);
+        return (a.null(), rest);
     }
     if first == "(" {
         let (head, new_rest) = parse_list(a, rest);
@@ -173,13 +170,22 @@ pub fn parse_exp<'a>(a: &mut Allocator, v: &'a str) -> (NodePtr, &'a str) {
     }
 }
 
-pub fn node_eq(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
-    match (allocator.sexp(s1), allocator.sexp(s2)) {
-        (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
-            node_eq(allocator, s1a, s2a) && node_eq(allocator, s1b, s2b)
+pub fn node_eq(a: &Allocator, a0: NodePtr, a1: NodePtr) -> bool {
+    match a.sexp(a0) {
+        SExp::Pair(left0, right0) => {
+            if let SExp::Pair(left1, right1) = a.sexp(a1) {
+                node_eq(a, left0, left1) && node_eq(a, right0, right1)
+            } else {
+                false
+            }
         }
-        (SExp::Atom, SExp::Atom) => allocator.atom_eq(s1, s2),
-        _ => false,
+        SExp::Atom(_) => {
+            if let SExp::Atom(_) = a.sexp(a1) {
+                a.atom(a0) == a.atom(a1)
+            } else {
+                false
+            }
+        }
     }
 }
 
@@ -221,12 +227,6 @@ use rstest::rstest;
 #[case("test-blspy-hash")]
 #[case("test-blspy-pairing")]
 #[case("test-blspy-verify")]
-#[case("test-bls-zk")]
-#[case("test-secp-verify")]
-#[case("test-secp256k1")]
-#[case("test-secp256r1")]
-#[case("test-modpow")]
-#[case("test-sha256")]
 fn test_ops(#[case] filename: &str) {
     use std::fs::read_to_string;
 
@@ -246,7 +246,6 @@ fn test_ops(#[case] filename: &str) {
         ("*", op_multiply as Opf),
         ("/", op_div as Opf),
         ("divmod", op_divmod as Opf),
-        ("%", op_mod as Opf),
         ("substr", op_substr as Opf),
         ("strlen", op_strlen as Opf),
         ("point_add", op_point_add as Opf),
@@ -277,29 +276,26 @@ fn test_ops(#[case] filename: &str) {
         ("g2_map", op_bls_map_to_g2 as Opf),
         ("bls_pairing_identity", op_bls_pairing_identity as Opf),
         ("bls_verify", op_bls_verify as Opf),
-        ("secp256k1_verify", op_secp256k1_verify as Opf),
-        ("secp256r1_verify", op_secp256r1_verify as Opf),
-        ("modpow", op_modpow as Opf),
     ]);
 
     println!("Test cases from: {filename}");
     let test_cases = read_to_string(filename).expect("test file not found");
-    for t in test_cases.split('\n') {
+    for t in test_cases.split("\n") {
         let t = t.trim();
-        if t.is_empty() {
+        if t.len() == 0 {
             continue;
         }
         // ignore comments
-        if t.starts_with(';') {
+        if t.starts_with(";") {
             continue;
         }
-        let (op_name, t) = t.split_once(' ').unwrap();
+        let (op_name, t) = t.split_once(" ").unwrap();
         let op = funs
             .get(op_name)
-            .unwrap_or_else(|| panic!("couldn't find operator \"{op_name}\""));
+            .expect(&format!("couldn't find operator \"{op_name}\""));
         let (args, out) = t.split_once("=>").unwrap();
-        let (expected, expected_cost) = if out.contains('|') {
-            out.split_once('|').unwrap()
+        let (expected, expected_cost) = if out.contains("|") {
+            out.split_once("|").unwrap()
         } else {
             (out, "0")
         };
@@ -318,7 +314,7 @@ fn test_ops(#[case] filename: &str) {
 fn test_single_argument_raise_atom() {
     let mut allocator = Allocator::new();
     let a1 = allocator.new_atom(&[65]).unwrap();
-    let args = allocator.new_pair(a1, allocator.nil()).unwrap();
+    let args = allocator.new_pair(a1, allocator.null()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
     assert_eq!(result, Err(EvalErr(a1, "klvm raise".to_string())));
 }
@@ -329,11 +325,11 @@ fn test_single_argument_raise_pair() {
     let a1 = allocator.new_atom(&[65]).unwrap();
     let a2 = allocator.new_atom(&[66]).unwrap();
     // (a2)
-    let mut args = allocator.new_pair(a2, allocator.nil()).unwrap();
+    let mut args = allocator.new_pair(a2, allocator.null()).unwrap();
     // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     // ((a1 a2))
-    args = allocator.new_pair(args, allocator.nil()).unwrap();
+    args = allocator.new_pair(args, allocator.null()).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
     assert_eq!(result, Err(EvalErr(args, "klvm raise".to_string())));
 }
@@ -344,7 +340,7 @@ fn test_multi_argument_raise() {
     let a1 = allocator.new_atom(&[65]).unwrap();
     let a2 = allocator.new_atom(&[66]).unwrap();
     // (a1)
-    let mut args = allocator.new_pair(a2, allocator.nil()).unwrap();
+    let mut args = allocator.new_pair(a2, allocator.null()).unwrap();
     // (a1 a2)
     args = allocator.new_pair(a1, args).unwrap();
     let result = op_raise(&mut allocator, args, 100000);
@@ -359,6 +355,21 @@ struct EvalFTracker {
     pub prog: NodePtr,
     pub args: NodePtr,
     pub outcome: Option<NodePtr>,
+}
+
+#[cfg(feature = "pre-eval")]
+fn equal_sexp(allocator: &Allocator, s1: NodePtr, s2: NodePtr) -> bool {
+    match (allocator.sexp(s1), allocator.sexp(s2)) {
+        (SExp::Pair(s1a, s1b), SExp::Pair(s2a, s2b)) => {
+            equal_sexp(allocator, s1a, s2a) && equal_sexp(allocator, s1b, s2b)
+        }
+        (SExp::Atom(b1), SExp::Atom(b2)) => {
+            let abuf1 = allocator.buf(&b1);
+            let abuf2 = allocator.buf(&b2);
+            abuf1 == abuf2
+        }
+        _ => false,
+    }
 }
 
 #[cfg(feature = "pre-eval")]
@@ -390,19 +401,19 @@ fn test_pre_eval_and_post_eval() {
     let a101 = allocator.new_atom(&[101]).unwrap();
 
     // (a (q . (f (c 2 5))) (q 99 101))
-    let arg_tail = allocator.new_pair(a101, allocator.nil()).unwrap();
+    let arg_tail = allocator.new_pair(a101, allocator.null()).unwrap();
     let arg_mid = allocator.new_pair(a99, arg_tail).unwrap();
     let args = allocator.new_pair(a1, arg_mid).unwrap();
 
-    let cons_tail = allocator.new_pair(a5, allocator.nil()).unwrap();
+    let cons_tail = allocator.new_pair(a5, allocator.null()).unwrap();
     let cons_args = allocator.new_pair(a2, cons_tail).unwrap();
     let cons_expr = allocator.new_pair(a4, cons_args).unwrap();
 
-    let f_tail = allocator.new_pair(cons_expr, allocator.nil()).unwrap();
+    let f_tail = allocator.new_pair(cons_expr, allocator.null()).unwrap();
     let f_expr = allocator.new_pair(a5, f_tail).unwrap();
     let f_quoted = allocator.new_pair(a1, f_expr).unwrap();
 
-    let a_tail = allocator.new_pair(args, allocator.nil()).unwrap();
+    let a_tail = allocator.new_pair(args, allocator.null()).unwrap();
     let a_args = allocator.new_pair(f_quoted, a_tail).unwrap();
     let program = allocator.new_pair(a2, a_args).unwrap();
 
@@ -413,7 +424,7 @@ fn test_pre_eval_and_post_eval() {
             &mut Allocator,
             NodePtr,
             NodePtr,
-        ) -> Result<Option<Box<(dyn Fn(&mut Allocator, Option<NodePtr>))>>, EvalErr>,
+        ) -> Result<Option<Box<(dyn Fn(Option<NodePtr>))>>, EvalErr>,
     > = Box::new(move |_allocator, prog, args| {
         let tracking_key = pre_eval_tracking.borrow().len();
         // Ensure lifetime of mutable borrow is contained.
@@ -430,32 +441,32 @@ fn test_pre_eval_and_post_eval() {
             );
         }
         let post_eval_tracking = pre_eval_tracking.clone();
-        let post_eval_f: Box<dyn Fn(&mut Allocator, Option<NodePtr>)> =
-            Box::new(move |_a, outcome| {
-                let mut tracking_mutable = post_eval_tracking.borrow_mut();
-                tracking_mutable.insert(
-                    tracking_key,
-                    EvalFTracker {
-                        prog,
-                        args,
-                        outcome,
-                    },
-                );
-            });
+        let post_eval_f: Box<dyn Fn(Option<NodePtr>)> = Box::new(move |outcome| {
+            let mut tracking_mutable = post_eval_tracking.borrow_mut();
+            tracking_mutable.insert(
+                tracking_key,
+                EvalFTracker {
+                    prog,
+                    args,
+                    outcome,
+                },
+            );
+        });
         Ok(Some(post_eval_f))
     });
 
+    let allocator_null = allocator.null();
     let result = run_program_with_pre_eval(
         &mut allocator,
         &ChikDialect::new(NO_UNKNOWN_OPS),
         program,
-        NodePtr::NIL,
+        allocator_null,
         COST_LIMIT,
         Some(pre_eval_f),
     )
     .unwrap();
 
-    assert!(node_eq(&allocator, result.1, a99));
+    assert!(equal_sexp(&allocator, result.1, a99));
 
     // Should produce these:
     // (q 99 101) => (99 101)
@@ -470,21 +481,21 @@ fn test_pre_eval_and_post_eval() {
     let args_consed = allocator.new_pair(a99, a101).unwrap();
 
     let mut desired_outcomes = Vec::new(); // Not in order.
-    desired_outcomes.push((args, NodePtr::NIL, arg_mid));
-    desired_outcomes.push((f_quoted, NodePtr::NIL, f_expr));
+    desired_outcomes.push((args, allocator_null, arg_mid));
+    desired_outcomes.push((f_quoted, allocator_null, f_expr));
     desired_outcomes.push((a2, arg_mid, a99));
     desired_outcomes.push((a5, arg_mid, a101));
     desired_outcomes.push((cons_expr, arg_mid, args_consed));
     desired_outcomes.push((f_expr, arg_mid, a99));
-    desired_outcomes.push((program, NodePtr::NIL, a99));
+    desired_outcomes.push((program, allocator_null, a99));
 
     let mut found_outcomes = HashSet::new();
     let tracking_examine = tracking.borrow();
     for (_, v) in tracking_examine.iter() {
         let found = desired_outcomes.iter().position(|(p, a, o)| {
-            node_eq(&allocator, *p, v.prog)
-                && node_eq(&allocator, *a, v.args)
-                && node_eq(&allocator, v.outcome.unwrap(), *o)
+            equal_sexp(&allocator, *p, v.prog)
+                && equal_sexp(&allocator, *a, v.args)
+                && equal_sexp(&allocator, v.outcome.unwrap(), *o)
         });
         found_outcomes.insert(found);
         assert!(found.is_some());

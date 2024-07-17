@@ -9,13 +9,11 @@ use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_fixed, op_divmod, op_gr,
-    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow,
-    op_multiply, op_not, op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr,
-    op_subtract, op_unknown,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
+    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
-use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 
 // unknown operators are disallowed
 // (otherwise they are no-ops with well defined cost)
@@ -25,17 +23,20 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
 
+// When set, enforce a stack size limit for KLVM programs
+pub const LIMIT_STACK: u32 = 0x0008;
+
+// When set, we allow softfork with extension 0 (which includes coinid and the
+// BLS operators). This remains disabled until the soft-fork activates
+pub const ENABLE_BLS_OPS: u32 = 0x0010;
+
 // enables the BLS ops extensions *outside* the softfork guard. This is a
 // hard-fork and should only be enabled when it activates
 pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
 
-// enabling this is a hard fork. This will allow negative numbers in the
-// division operator
-pub const ENABLE_FIXED_DIV: u32 = 0x0080;
-
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
-pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP;
+pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | LIMIT_STACK;
 
 fn unknown_operator(
     allocator: &mut Allocator,
@@ -70,46 +71,11 @@ impl Dialect for ChikDialect {
         max_cost: Cost,
         extension: OperatorSet,
     ) -> Response {
-        let flags = self.flags
-            | match extension {
-                OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
-                _ => 0,
-            };
-        let op_len = allocator.atom_len(o);
-        if op_len == 4 {
-            // these are unknown operators with assigned cost
-            // the formula is:
-            // +---+---+---+------------+
-            // | multiplier|XX | XXXXXX |
-            // +---+---+---+---+--------+
-            //  ^           ^    ^
-            //  |           |    + 6 bits ignored when computing cost
-            // cost         |
-            // (3 bytes)    + 2 bits
-            //                cost_function
-
-            let b = allocator.atom(o);
-            let opcode = u32::from_be_bytes(b.as_ref().try_into().unwrap());
-
-            // the secp operators have a fixed cost of 1850000 and 1300000,
-            // which makes the multiplier 0x1c3a8f and 0x0cf84f (there is an
-            // implied +1) and cost function 0
-            let f = match opcode {
-                0x13d61f00 => op_secp256k1_verify,
-                0x1c3a8f00 => op_secp256r1_verify,
-                _ => {
-                    return unknown_operator(allocator, o, argument_list, flags, max_cost);
-                }
-            };
-            return f(allocator, argument_list, max_cost);
+        let b = &allocator.atom(o);
+        if b.len() != 1 {
+            return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
         }
-        if op_len != 1 {
-            return unknown_operator(allocator, o, argument_list, flags, max_cost);
-        }
-        let Some(op) = allocator.small_number(o) else {
-            return unknown_operator(allocator, o, argument_list, flags, max_cost);
-        };
-        let f = match op {
+        let f = match b[0] {
             // 1 = quote
             // 2 = apply
             3 => op_if,
@@ -128,13 +94,7 @@ impl Dialect for ChikDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => {
-                if (flags & ENABLE_FIXED_DIV) != 0 {
-                    op_div_fixed
-                } else {
-                    op_div
-                }
-            }
+            19 => op_div,
             20 => op_divmod,
             21 => op_gr,
             22 => op_ash,
@@ -152,49 +112,76 @@ impl Dialect for ChikDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            48..=61 if (flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0 => match op {
-                48 => op_coinid,
-                49 => op_bls_g1_subtract,
-                50 => op_bls_g1_multiply,
-                51 => op_bls_g1_negate,
-                52 => op_bls_g2_add,
-                53 => op_bls_g2_subtract,
-                54 => op_bls_g2_multiply,
-                55 => op_bls_g2_negate,
-                56 => op_bls_map_to_g1,
-                57 => op_bls_map_to_g2,
-                58 => op_bls_pairing_identity,
-                59 => op_bls_verify,
-                60 => op_modpow,
-                61 => op_mod,
-                _ => {
-                    unreachable!();
-                }
-            },
             _ => {
-                return unknown_operator(allocator, o, argument_list, flags, max_cost);
+                if extension == OperatorSet::BLS || (self.flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0
+                {
+                    match b[0] {
+                        48 => op_coinid,
+                        49 => op_bls_g1_subtract,
+                        50 => op_bls_g1_multiply,
+                        51 => op_bls_g1_negate,
+                        52 => op_bls_g2_add,
+                        53 => op_bls_g2_subtract,
+                        54 => op_bls_g2_multiply,
+                        55 => op_bls_g2_negate,
+                        56 => op_bls_map_to_g1,
+                        57 => op_bls_map_to_g2,
+                        58 => op_bls_pairing_identity,
+                        59 => op_bls_verify,
+                        _ => {
+                            return unknown_operator(
+                                allocator,
+                                o,
+                                argument_list,
+                                self.flags,
+                                max_cost,
+                            );
+                        }
+                    }
+                } else {
+                    return unknown_operator(allocator, o, argument_list, self.flags, max_cost);
+                }
             }
         };
         f(allocator, argument_list, max_cost)
     }
 
-    fn quote_kw(&self) -> u32 {
-        1
+    fn quote_kw(&self) -> &[u8] {
+        &[1]
     }
-    fn apply_kw(&self) -> u32 {
-        2
+
+    fn apply_kw(&self) -> &[u8] {
+        &[2]
     }
-    fn softfork_kw(&self) -> u32 {
-        36
+
+    fn softfork_kw(&self) -> &[u8] {
+        &[36]
     }
 
     // interpret the extension argument passed to the softfork operator, and
     // return the Operators it enables (or None) if we don't know what it means
+    // We have to pretend that we don't know about the BLS extensions until
+    // after the soft-fork activation, which is controlled by the ENABLE_BLS_OPS
+    // flag
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
-            0 => OperatorSet::BLS,
+            0 => {
+                if (self.flags & ENABLE_BLS_OPS) == 0 {
+                    OperatorSet::Default
+                } else {
+                    OperatorSet::BLS
+                }
+            }
             // new extensions go here
             _ => OperatorSet::Default,
+        }
+    }
+
+    fn stack_limit(&self) -> usize {
+        if (self.flags & LIMIT_STACK) != 0 {
+            20000000
+        } else {
+            usize::MAX
         }
     }
 

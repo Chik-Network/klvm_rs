@@ -11,10 +11,6 @@ on:
     branches:
       - '**'
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   build_wheels:
     name: Wheel on ${{ matrix.os }} py-${{ matrix.python }}
@@ -23,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.8]
+        python: [3.7]
 
     steps:
     - uses: actions/checkout@v3
@@ -40,7 +36,9 @@ jobs:
           python -m pip install --upgrade pip
 
     - name: Set up rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
 
     - name: Install dependencies
       run: |
@@ -59,19 +57,19 @@ jobs:
     - name: Build Linux in manylinux2014 with maturin on Python ${{ matrix.python }}
       if: startsWith(matrix.os, 'ubuntu')
       run: |
-        docker run --rm \
-          -v ${{ github.workspace }}:/ws --workdir=/ws \
+        podman run --rm=true \
+          -v ${{ github.workspace }}:/ws:rw --workdir=/ws \
           quay.io/pypa/manylinux2014_x86_64 \
           bash -exc '\
             curl -L https://sh.rustup.rs > rustup-init.sh && \
             sh rustup-init.sh -y && \
-            yum -y --disablerepo=epel install openssl-devel && \
+            yum -y install openssl-devel && \
             source $HOME/.cargo/env && \
             rustup target add x86_64-unknown-linux-musl && \
             PY_VERSION=${{ matrix.python }}
             PY_VERSION=${PY_VERSION/.} && \
             echo "Python version with dot removed is $PY_VERSION" && \
-            if [ "$PY_VERSION" = "38" ]; \
+            if [ "$PY_VERSION" = "37" ]; \
             then export SCND_VERSION="${PY_VERSION}m"; \
             else export SCND_VERSION="$PY_VERSION"; fi && \
             echo "Exporting path /opt/python/cp$PY_VERSION-cp$SCND_VERSION/bin" && \
@@ -95,7 +93,7 @@ jobs:
         # this will install into the venv
         # it'd be better to use the wheel, but I can't figure out how to do that
         # TODO: figure this out
-        # this does NOT work: pip install target/wheels/klvm_rs-*.whl
+        # this does NOT work: pip install wheel/target/wheels/klvm_rs-*.whl
         maturin develop --release -m wheel/Cargo.toml
         # the line above also doesn't seem to work
 
@@ -103,10 +101,10 @@ jobs:
       if: ${{ !startsWith(matrix.os, 'windows') }}
       run: |
         . ./activate
-        ls target/wheels/
+        ls wheel/target/wheels/
         # this mess puts the name of the `.whl` file into `$WHEEL_PATH`
         # remove the dot, use the `glob` lib to grab the file from the directory
-        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("target/wheels/klvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
+        WHEEL_PATH=$(echo ${{ matrix.python }} | python -c 'DOTLESS=input().replace(".", ""); import glob; print(" ".join(glob.glob("wheel/target/wheels/klvm_rs-*-cp%s-abi3-*.whl" % DOTLESS)))' )
         echo ${WHEEL_PATH}
         pip install ${WHEEL_PATH}
 
@@ -129,51 +127,58 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: wheels
-        path: ./target/wheels/
+        path: ./wheel/target/wheels/
 
-  upload:
-    name: Upload to PyPI
-    runs-on: ubuntu-latest
-    needs: build_wheels
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
+    - name: Install Twine
+      run: pip install twine
 
-    - name: Install python
-      uses: Chik-Network/actions/setup-python@main
-      with:
-        python-version: "3.10"
-
-    - name: Download artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: wheels
-        path: ./target/wheels/
+    - name: Test for secrets access
+      id: check_secrets
+      shell: bash
+      run: |
+        unset HAS_SECRET
+        if [ -n "$SECRET" ]; then HAS_SECRET='true' ; fi
+        echo "HAS_SECRET=${HAS_SECRET}" >>$GITHUB_OUTPUT
+      env:
+        SECRET: "${{ secrets.test_pypi_password }}"
 
     - name: publish (PyPi)
-      if: startsWith(github.event.ref, 'refs/tags')
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        packages-dir: target/wheels/
-        skip-existing: true
+      if: startsWith(github.event.ref, 'refs/tags') && steps.check_secrets.outputs.HAS_SECRET
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_NON_INTERACTIVE: 1
+        TWINE_PASSWORD: ${{ secrets.pypi_password }}
+      run: twine upload --non-interactive --skip-existing --verbose 'wheel/target/wheels/*'
 
-  checks:
+  fmt:
     runs-on: ubuntu-20.04
-    name: Checks
+    name: cargo fmt
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rs/toolchain@v1
         with:
+            toolchain: stable
+            override: true
             components: rustfmt, clippy
-      - name: Clippy
-        run: cargo clippy --all-targets --workspace -- -D warnings
       - name: fmt
         run: cargo fmt --all -- --files-with-diff --check
+
+  clippy:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+          override: true
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --workspace --all-features
 
   # leaving out Windows fuzzing for now though it seems supported
   # https://llvm.org/docs/LibFuzzer.html#q-does-libfuzzer-support-windows
@@ -184,15 +189,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        python: [3.8]
+        python: [3.7]
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install rust
-        uses: dtolnay/rust-toolchain@master
+        uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly-2024-02-11
+            toolchain: nightly
+            override: true
             components: rustfmt, clippy
       - name: fmt
         run: |
@@ -203,14 +209,14 @@ jobs:
           cd fuzz
           cargo clippy
       - name: cargo-fuzz
-        run: cargo install cargo-fuzz
+        run: cargo +nightly install cargo-fuzz
       # TODO: it would be nice to save and restore the corpus between runs
       - name: build corpus
         run: |
           cd tools
           cargo run --bin generate-fuzz-corpus
       - name: build
-        run: cargo fuzz list | xargs -I "%" sh -c "cargo fuzz run % -- -max_total_time=30 || exit 255"
+        run: cargo fuzz list | xargs -I "%" sh -c "cargo +nightly fuzz run % -- -max_total_time=30 || exit 255"
 
   unit_tests:
     name: Unit tests
@@ -219,18 +225,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        python: [3.8]
+        python: [3.7]
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Install rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rs/toolchain@v1
         with:
+            toolchain: stable
             components: rustfmt, clippy
-
-      - name: build
-        run: cargo build --workspace --exclude klvm_rs-fuzz
 
       - name: cargo test (default)
         run: cargo test && cargo test --release
@@ -248,28 +252,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
       - name: Run for coverage
         run: |
-          sudo apt-get update
-          sudo apt-get install lcov -y
           rustup component add llvm-tools-preview
-          export CARGOFLAGS="-j $(nproc)"
           cargo install grcov
-          export RUSTFLAGS="-Cinstrument-coverage"
-          export LLVM_PROFILE_FILE=$(pwd)/target/klvm_rs-%p-%m.profraw
-          export CARGO_TARGET_DIR=$(pwd)/target
-          export RUST_TEST_THREADS=$(nproc)
-          cargo test --release --workspace
-          python -m venv venv
-          source venv/bin/activate
-          pip install colorama maturin pytest pytest-cov
-          maturin develop --release -m wheel/Cargo.toml --features=openssl
-          (cd tests && python generate-programs.py && python run-programs.py) || true
-          pytest wheel/python/tests --cov=klvm_rs --cov-report lcov:py_cov.info --cov-branch
-          grcov . --binary-path target -s . --branch --ignore-not-existing --ignore='*/.cargo/*' --ignore='target/*' -o pre_rust_cov.info
-          python -c 'with open("pre_rust_cov.info") as f: lines = [l for l in f if not (l.startswith("DA:") and int(l.split(",")[1].strip()) >= 2**63)]; open("rust_cov.info", "w").writelines(lines)'
-          lcov --add-tracefile rust_cov.info -a py_cov.info -o lcov.info
+          RUSTFLAGS="-Cinstrument-coverage" cargo test --workspace
+          grcov . --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o lcov.info
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         if: always()

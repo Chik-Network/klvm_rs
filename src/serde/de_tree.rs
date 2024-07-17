@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::io::{Error, Read, Result, Write};
 
 use sha2::Digest;
@@ -124,92 +125,97 @@ pub fn parse_triples<R: Read>(
     let mut tree_hashes = Vec::new();
     let mut op_stack = vec![ParseOpRef::ParseObj];
     let mut cursor: u64 = 0;
-    while let Some(op) = op_stack.pop() {
-        match op {
-            ParseOpRef::ParseObj => {
-                let mut b: [u8; 1] = [0];
-                f.read_exact(&mut b)?;
-                let start = cursor;
-                cursor += 1;
-                let b = b[0];
-                if b == CONS_BOX_MARKER {
-                    let index = r.len();
-                    let new_obj = ParsedTriple::Pair {
-                        start,
-                        end: 0,
-                        right_index: 0,
-                    };
-                    r.push(new_obj);
-                    if calculate_tree_hashes {
-                        tree_hashes.push([0; 32])
-                    }
-                    op_stack.push(ParseOpRef::SaveEnd(index));
-                    op_stack.push(ParseOpRef::ParseObj);
-                    op_stack.push(ParseOpRef::SaveRightIndex(index));
-                    op_stack.push(ParseOpRef::ParseObj);
-                } else {
-                    let (start, end, atom_offset, tree_hash) = {
-                        if b <= MAX_SINGLE_BYTE {
-                            (
-                                start,
-                                start + 1,
-                                0,
-                                tree_hash_for_byte(b, calculate_tree_hashes),
-                            )
-                        } else {
-                            let (atom_offset, atom_size) = decode_size_with_offset(f, b)?;
-                            let end = start + (atom_offset as u64) + atom_size;
-                            let h = skip_or_sha_bytes(f, atom_size, calculate_tree_hashes)?;
-                            (start, end, atom_offset as u32, h)
-                        }
-                    };
-                    if calculate_tree_hashes {
-                        tree_hashes.push(tree_hash.expect("failed unwrap"))
-                    }
-                    let new_obj = ParsedTriple::Atom {
-                        start,
-                        end,
-                        atom_offset,
-                    };
-                    cursor = end;
-                    r.push(new_obj);
-                }
+    loop {
+        match op_stack.pop() {
+            None => {
+                break;
             }
-            ParseOpRef::SaveEnd(index) => match &mut r[index] {
-                ParsedTriple::Pair {
-                    start: _,
-                    end,
-                    right_index,
-                } => {
-                    if calculate_tree_hashes {
-                        let h = sha_blobs(&[
-                            &[2],
-                            &tree_hashes[index + 1],
-                            &tree_hashes[*right_index as usize],
-                        ]);
-                        tree_hashes[index] = h;
+            Some(op) => match op {
+                ParseOpRef::ParseObj => {
+                    let mut b: [u8; 1] = [0];
+                    f.read_exact(&mut b)?;
+                    let start = cursor;
+                    cursor += 1;
+                    let b = b[0];
+                    if b == CONS_BOX_MARKER {
+                        let index = r.len();
+                        let new_obj = ParsedTriple::Pair {
+                            start,
+                            end: 0,
+                            right_index: 0,
+                        };
+                        r.push(new_obj);
+                        if calculate_tree_hashes {
+                            tree_hashes.push([0; 32])
+                        }
+                        op_stack.push(ParseOpRef::SaveEnd(index));
+                        op_stack.push(ParseOpRef::ParseObj);
+                        op_stack.push(ParseOpRef::SaveRightIndex(index));
+                        op_stack.push(ParseOpRef::ParseObj);
+                    } else {
+                        let (start, end, atom_offset, tree_hash) = {
+                            if b <= MAX_SINGLE_BYTE {
+                                (
+                                    start,
+                                    start + 1,
+                                    0,
+                                    tree_hash_for_byte(b, calculate_tree_hashes),
+                                )
+                            } else {
+                                let (atom_offset, atom_size) = decode_size_with_offset(f, b)?;
+                                let end = start + (atom_offset as u64) + atom_size;
+                                let h = skip_or_sha_bytes(f, atom_size, calculate_tree_hashes)?;
+                                (start, end, atom_offset as u32, h)
+                            }
+                        };
+                        if calculate_tree_hashes {
+                            tree_hashes.push(tree_hash.expect("failed unwrap"))
+                        }
+                        let new_obj = ParsedTriple::Atom {
+                            start,
+                            end,
+                            atom_offset,
+                        };
+                        cursor = end;
+                        r.push(new_obj);
                     }
-                    *end = cursor;
                 }
-                _ => {
-                    panic!("internal error: SaveEnd")
-                }
-            },
-            ParseOpRef::SaveRightIndex(index) => {
-                let new_index = r.len() as u32;
-                match &mut r[index] {
+                ParseOpRef::SaveEnd(index) => match &mut r[index] {
                     ParsedTriple::Pair {
                         start: _,
-                        end: _,
+                        end,
                         right_index,
                     } => {
-                        *right_index = new_index;
+                        if calculate_tree_hashes {
+                            let h = sha_blobs(&[
+                                &[2],
+                                &tree_hashes[index + 1],
+                                &tree_hashes[*right_index as usize],
+                            ]);
+                            tree_hashes[index] = h;
+                        }
+                        *end = cursor;
                     }
                     _ => {
-                        panic!("internal error: SaveRightIndex")
+                        panic!("internal error: SaveEnd")
+                    }
+                },
+                ParseOpRef::SaveRightIndex(index) => {
+                    let new_index = r.len() as u32;
+                    match &mut r[index] {
+                        ParsedTriple::Pair {
+                            start: _,
+                            end: _,
+                            right_index,
+                        } => {
+                            *right_index = new_index;
+                        }
+                        _ => {
+                            panic!("internal error: SaveRightIndex")
+                        }
                     }
                 }
-            }
+            },
         }
     }
     Ok((
@@ -229,7 +235,7 @@ use std::io::Cursor;
 use hex::FromHex;
 
 #[cfg(test)]
-fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) {
+fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex: &str) -> () {
     let b = Vec::from_hex(h).unwrap();
     println!("{:?}", b);
     let mut f = Cursor::new(b);
@@ -247,7 +253,7 @@ fn check_parse_tree(h: &str, expected: Vec<ParsedTriple>, expected_sha_tree_hex:
 }
 
 #[cfg(test)]
-fn check_sha_blobs(h: &str, blobs: &[&[u8]]) {
+fn check_sha_blobs(h: &str, blobs: &[&[u8]]) -> () {
     let exp_sha = Vec::from_hex(h).unwrap();
     let actual_sha = sha_blobs(blobs);
     assert_eq!(exp_sha, actual_sha);

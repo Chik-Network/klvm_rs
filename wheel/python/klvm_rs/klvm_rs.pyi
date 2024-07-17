@@ -13,6 +13,7 @@ def serialized_length(blob: bytes) -> int: ...
 NO_NEG_DIV: int
 NO_UNKNOWN_OPS: int
 LIMIT_HEAP: int
+LIMIT_STACK: int
 MEMPOOL_MODE: int
 
 class LazyNode(KLVMStorage):

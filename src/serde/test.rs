@@ -1,6 +1,7 @@
 use hex::FromHex;
 
 use crate::allocator::Allocator;
+use crate::node::Node;
 
 use crate::serde::de::node_from_bytes;
 use crate::serde::de_br::node_from_bytes_backrefs;
@@ -17,14 +18,16 @@ fn check_round_trip(obj_ser_br_hex: &str) {
     let mut allocator = Allocator::new();
     let obj = node_from_bytes_backrefs(&mut allocator, &obj_ser_br).unwrap();
 
-    let obj_ser_no_br_1 = node_to_bytes(&allocator, obj).unwrap();
+    let node = Node::new(&allocator, obj);
+    let obj_ser_no_br_1 = node_to_bytes(&node).unwrap();
 
     // deserialize using `node_from_bytes_backrefs` (even though there are no backrefs)
     // and reserialized without back-refs
     let mut allocator = Allocator::new();
     let obj = node_from_bytes_backrefs(&mut allocator, &obj_ser_no_br_1).unwrap();
 
-    let obj_ser_no_br_2 = node_to_bytes(&allocator, obj).unwrap();
+    let node = Node::new(&allocator, obj);
+    let obj_ser_no_br_2 = node_to_bytes(&node).unwrap();
 
     // compare both reserializations (without back-refs)
     assert_eq!(obj_ser_no_br_1, obj_ser_no_br_2);
@@ -33,7 +36,8 @@ fn check_round_trip(obj_ser_br_hex: &str) {
     let mut allocator = Allocator::new();
     let obj = node_from_bytes(&mut allocator, &obj_ser_no_br_1).unwrap();
 
-    let obj_ser_br_1 = node_to_bytes_backrefs(&allocator, obj).unwrap();
+    let node = Node::new(&allocator, obj);
+    let obj_ser_br_1 = node_to_bytes_backrefs(&node).unwrap();
 
     // and compare to original
     assert_eq!(obj_ser_br, obj_ser_br_1);

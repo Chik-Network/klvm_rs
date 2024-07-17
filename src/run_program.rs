@@ -1,9 +1,10 @@
-use super::traverse_path::{traverse_path, traverse_path_fast};
-use crate::allocator::{Allocator, Checkpoint, NodePtr, NodeVisitor, SExp};
+use super::traverse_path::traverse_path;
+use crate::allocator::{Allocator, AtomBuf, Checkpoint, NodePtr, SExp};
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
-use crate::op_utils::{first, get_args, uint_atom};
+use crate::node::Node;
+use crate::op_utils::uint_atom;
 use crate::reduction::{EvalErr, Reduction, Response};
 
 // lowered from 46
@@ -15,16 +16,12 @@ const GUARD_COST: Cost = 140;
 // mandatory base cost for every operator we execute
 const OP_COST: Cost = 1;
 
-// The max number of elements allowed on the stack. The program fails if this is
-// exceeded
-const STACK_SIZE_LIMIT: usize = 20000000;
-
 #[cfg(feature = "pre-eval")]
 pub type PreEval =
     Box<dyn Fn(&mut Allocator, NodePtr, NodePtr) -> Result<Option<Box<PostEval>>, EvalErr>>;
 
 #[cfg(feature = "pre-eval")]
-pub type PostEval = dyn Fn(&mut Allocator, Option<NodePtr>);
+pub type PostEval = dyn Fn(Option<NodePtr>);
 
 #[repr(u8)]
 enum Operation {
@@ -44,7 +41,6 @@ pub struct Counters {
     pub env_stack_usage: usize,
     pub op_stack_usage: usize,
     pub atom_count: u32,
-    pub small_atom_count: u32,
     pub pair_count: u32,
     pub heap_size: u32,
 }
@@ -57,7 +53,6 @@ impl Counters {
             env_stack_usage: 0,
             op_stack_usage: 0,
             atom_count: 0,
-            small_atom_count: 0,
             pair_count: 0,
             heap_size: 0,
         }
@@ -84,11 +79,8 @@ struct SoftforkGuard {
     start_cost: Cost,
 }
 
-// `run_program` has three stacks:
-// 1. the operand stack of `NodePtr` objects. val_stack
-// 2. the operator stack of Operation. op_stack
-// 3. the environment stack (points to the environment for the current
-//    operation). env_stack
+// `run_program` has two stacks: the operand stack (of `Node` objects) and the
+// operator stack (of Operation)
 
 struct RunProgramContext<'a, D> {
     allocator: &'a mut Allocator,
@@ -97,6 +89,7 @@ struct RunProgramContext<'a, D> {
     env_stack: Vec<NodePtr>,
     op_stack: Vec<Operation>,
     softfork_stack: Vec<SoftforkGuard>,
+    stack_limit: usize,
     #[cfg(feature = "counters")]
     pub counters: Counters,
 
@@ -154,14 +147,14 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         let v: Option<NodePtr> = self.val_stack.pop();
         match v {
             None => {
-                let node: NodePtr = self.allocator.nil();
+                let node: NodePtr = self.allocator.null();
                 err(node, "runtime error: value stack empty")
             }
             Some(k) => Ok(k),
         }
     }
     pub fn push(&mut self, node: NodePtr) -> Result<(), EvalErr> {
-        if self.val_stack.len() == STACK_SIZE_LIMIT {
+        if self.val_stack.len() == self.stack_limit {
             return err(node, "value stack limit reached");
         }
         self.val_stack.push(node);
@@ -170,7 +163,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
     }
 
     pub fn push_env(&mut self, env: NodePtr) -> Result<(), EvalErr> {
-        if self.env_stack.len() == STACK_SIZE_LIMIT {
+        if self.env_stack.len() == self.stack_limit {
             return err(env, "environment stack limit reached");
         }
         self.env_stack.push(env);
@@ -191,6 +184,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
+            stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             pre_eval,
@@ -206,6 +200,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
             env_stack: Vec::new(),
             op_stack: Vec::new(),
             softfork_stack: Vec::new(),
+            stack_limit: dialect.stack_limit(),
             #[cfg(feature = "counters")]
             counters: Counters::new(),
             #[cfg(feature = "pre-eval")]
@@ -226,12 +221,14 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn eval_op_atom(
         &mut self,
+        op_buf: &AtomBuf,
         operator_node: NodePtr,
         operand_list: NodePtr,
         env: NodePtr,
     ) -> Result<Cost, EvalErr> {
+        let op_atom = self.allocator.buf(op_buf);
         // special case check for quote
-        if self.allocator.small_number(operator_node) == Some(self.dialect.quote_kw()) {
+        if op_atom == self.dialect.quote_kw() {
             self.push(operand_list)?;
             Ok(QUOTE_COST)
         } else {
@@ -257,11 +254,11 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.push(first)?;
                 operands = rest;
             }
-            // ensure a correct nil terminator
-            if self.allocator.atom_len(operands) != 0 {
+            // ensure a correct null terminator
+            if !self.allocator.atom(operands).is_empty() {
                 err(operand_list, "bad operand list")
             } else {
-                self.push(self.allocator.nil())?;
+                self.push(self.allocator.null())?;
                 Ok(OP_COST)
             }
         }
@@ -277,27 +274,21 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
         };
 
         // put a bunch of ops on op_stack
-        let SExp::Pair(op_node, op_list) = self.allocator.sexp(program) else {
+        let (op_node, op_list) = match self.allocator.sexp(program) {
             // the program is just a bitfield path through the env tree
-            let r = match self.allocator.node(program) {
-                NodeVisitor::Buffer(buf) => traverse_path(self.allocator, buf, env)?,
-                NodeVisitor::U32(val) => traverse_path_fast(self.allocator, val, env)?,
-                NodeVisitor::Pair(_, _) => {
-                    panic!("expected atom, got pair");
-                }
-            };
-            self.push(r.1)?;
-            return Ok(r.0);
+            SExp::Atom(path) => {
+                let r: Reduction = traverse_path(self.allocator, self.allocator.buf(&path), env)?;
+                self.push(r.1)?;
+                return Ok(r.0);
+            }
+            // the program is an operator and a list of operands
+            SExp::Pair(operator_node, operand_list) => (operator_node, operand_list),
         };
 
         match self.allocator.sexp(op_node) {
             SExp::Pair(new_operator, _) => {
-                let [inner] = get_args::<1>(
-                    self.allocator,
-                    op_node,
-                    "in the ((X)...) syntax, the inner list",
-                )?;
-                if let SExp::Pair(_, _) = self.allocator.sexp(inner) {
+                let op_node = Node::new(self.allocator, op_node);
+                if !op_node.arg_count_is(1) || op_node.first()?.atom().is_none() {
                     return err(program, "in ((X)...) syntax X must be lone atom");
                 }
                 self.push_env(env)?;
@@ -307,7 +298,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 self.account_op_push();
                 Ok(APPLY_COST)
             }
-            SExp::Atom => self.eval_op_atom(op_node, op_list, env),
+            SExp::Atom(op_atom) => self.eval_op_atom(&op_atom, op_node, op_list, env),
         }
     }
 
@@ -329,47 +320,62 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
     fn parse_softfork_arguments(
         &self,
-        args: NodePtr,
+        args: &Node,
     ) -> Result<(OperatorSet, NodePtr, NodePtr), EvalErr> {
-        let [_cost, extension, program, env] = get_args::<4>(self.allocator, args, "softfork")?;
-
-        let extension =
-            self.dialect
-                .softfork_extension(uint_atom::<4>(self.allocator, extension, "softfork")? as u32);
-        if extension == OperatorSet::Default {
-            err(args, "unknown softfork extension")
-        } else {
-            Ok((extension, program, env))
+        if !args.arg_count_is(4) {
+            return Err(EvalErr(
+                args.node,
+                "softfork takes exactly 4 arguments".to_string(),
+            ));
         }
+        let args = args.rest()?;
+
+        let extension = self
+            .dialect
+            .softfork_extension(uint_atom::<4>(&args.first()?, "softfork")? as u32);
+        if extension == OperatorSet::Default {
+            return Err(EvalErr(args.node, "unknown softfork extension".to_string()));
+        }
+        let args = args.rest()?;
+        let program = args.first()?.node;
+        let args = args.rest()?;
+        let env = args.first()?.node;
+
+        Ok((extension, program, env))
     }
 
     fn apply_op(&mut self, current_cost: Cost, max_cost: Cost) -> Result<Cost, EvalErr> {
         let operand_list = self.pop()?;
         let operator = self.pop()?;
-        if self.env_stack.pop().is_none() {
-            return err(operator, "runtime error: env stack empty");
-        }
-        let op_atom = self.allocator.small_number(operator);
+        let operand_list = Node::new(self.allocator, operand_list);
+        let operator = Node::new(self.allocator, operator);
+        let op_atom = operator
+            .atom()
+            .ok_or_else(|| EvalErr(operator.node, "internal error".into()))?;
+        self.env_stack
+            .pop()
+            .ok_or_else(|| EvalErr(operator.node, "runtime error: env stack empty".into()))?;
+        if op_atom == self.dialect.apply_kw() {
+            if !operand_list.arg_count_is(2) {
+                return operand_list.err("apply requires exactly 2 parameters");
+            }
 
-        if op_atom == Some(self.dialect.apply_kw()) {
-            let [new_operator, env] = get_args::<2>(self.allocator, operand_list, "apply")?;
+            let new_operator = operand_list.first()?.node;
+            let env = operand_list.rest()?.first()?.node;
+
             self.eval_pair(new_operator, env).map(|c| c + APPLY_COST)
-        } else if op_atom == Some(self.dialect.softfork_kw()) {
-            let expected_cost = uint_atom::<8>(
-                self.allocator,
-                first(self.allocator, operand_list)?,
-                "softfork",
-            )?;
+        } else if op_atom == self.dialect.softfork_kw() {
+            let expected_cost = uint_atom::<8>(&operand_list.first()?, "softfork")?;
             if expected_cost > max_cost {
-                return err(operand_list, "cost exceeded");
+                return err(self.allocator.null(), "cost exceeded");
             }
             if expected_cost == 0 {
-                return err(operand_list, "cost must be > 0");
+                return err(self.allocator.null(), "cost must be > 0");
             }
 
             // we can't blindly propagate errors here, since we handle errors
             // differently depending on whether we allow unknown ops or not
-            let (ext, prg, env) = match self.parse_softfork_arguments(operand_list) {
+            let (ext, prg, env) = match self.parse_softfork_arguments(&operand_list) {
                 Ok(ret_values) => ret_values,
                 Err(err) => {
                     if self.dialect.allow_unknown_ops() {
@@ -377,7 +383,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                         // that doesn't pass the correct arguments.
                         // if we're in consensus mode, we have to accept this as
                         // something we don't understand
-                        self.push(self.allocator.nil())?;
+                        self.push(self.allocator.null())?;
                         return Ok(expected_cost);
                     }
                     return Err(err);
@@ -406,8 +412,8 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
 
             let r = self.dialect.op(
                 self.allocator,
-                operator,
-                operand_list,
+                operator.node,
+                operand_list.node,
                 max_cost,
                 current_extensions,
             )?;
@@ -431,22 +437,22 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 current_cost - guard.start_cost,
                 guard.expected_cost - guard.start_cost
             );
-            return err(self.allocator.nil(), "softfork specified cost mismatch");
+            return err(self.allocator.null(), "softfork specified cost mismatch");
         }
 
         // restore the allocator to the state when we entered the softfork guard
         // This is an optimization to reclaim all heap space allocated by the
-        // softfork program. Since the softfork always return nil, no value can
+        // softfork program. Since the softfork always return null, no value can
         // escape the softfork program, and it's therefore safe to restore the
         // heap
         self.allocator.restore_checkpoint(&guard.allocator_state);
 
-        // the softfork always returns nil, pop the value pushed by the
-        // evaluation of the program and push nil instead
+        // the softfork always returns null, pop the value pushed by the
+        // evaluation of the program and push null instead
         self.pop()
             .expect("internal error, softfork program did not push value onto stack");
 
-        self.push(self.allocator.nil())?;
+        self.push(self.allocator.null())?;
 
         Ok(0)
     }
@@ -495,7 +501,7 @@ impl<'a, D: Dialect> RunProgramContext<'a, D> {
                 Operation::PostEval => {
                     let f = self.posteval_stack.pop().unwrap();
                     let peek: Option<NodePtr> = self.val_stack.last().copied();
-                    f(&mut self.allocator, peek);
+                    f(peek);
                     0
                 }
             };
@@ -539,7 +545,6 @@ pub fn run_program_with_counters<'a, D: Dialect>(
     let mut rpc = RunProgramContext::new(allocator, dialect);
     let ret = rpc.run_program(program, env, max_cost);
     rpc.counters.atom_count = rpc.allocator.atom_count() as u32;
-    rpc.counters.small_atom_count = rpc.allocator.small_atom_count() as u32;
     rpc.counters.pair_count = rpc.allocator.pair_count() as u32;
     rpc.counters.heap_size = rpc.allocator.heap_size() as u32;
     (rpc.counters, ret)
@@ -559,50 +564,14 @@ struct RunProgramTest {
 use crate::test_ops::parse_exp;
 
 #[cfg(test)]
-use crate::chik_dialect::{ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, NO_UNKNOWN_OPS};
+use crate::chik_dialect::ENABLE_BLS_OPS;
+#[cfg(test)]
+use crate::chik_dialect::ENABLE_BLS_OPS_OUTSIDE_GUARD;
+#[cfg(test)]
+use crate::chik_dialect::NO_UNKNOWN_OPS;
 
 #[cfg(test)]
 const TEST_CASES: &[RunProgramTest] = &[
-    RunProgramTest {
-        prg: "(/ (q . 10) (q . -3))",
-        args: "()",
-        flags: 0,
-        result: None,
-        cost: 0,
-        err: "div operator with negative operands is deprecated",
-    },
-    RunProgramTest {
-        prg: "(/ (q . -10) (q . 3))",
-        args: "()",
-        flags: 0,
-        result: None,
-        cost: 0,
-        err: "div operator with negative operands is deprecated",
-    },
-    RunProgramTest {
-        prg: "(/ (q . 10) (q . -3))",
-        args: "()",
-        flags: ENABLE_FIXED_DIV,
-        result: Some("-4"),
-        cost: 1047,
-        err: "",
-    },
-    RunProgramTest {
-        prg: "(/ (q . -10) (q . 3))",
-        args: "()",
-        flags: ENABLE_FIXED_DIV,
-        result: Some("-4"),
-        cost: 1047,
-        err: "",
-    },
-    RunProgramTest {
-        prg: "(/ (q . -1) (q . 2))",
-        args: "()",
-        flags: ENABLE_FIXED_DIV,
-        result: Some("-1"),
-        cost: 1047,
-        err: "",
-    },
     // (mod (X N) (defun power (X N) (if (= N 0) 1 (* X (power X (- N 1))))) (power X N))
     RunProgramTest {
         prg: "(a (q 2 2 (c 2 (c 5 (c 11 ())))) (c (q 2 (i (= 11 ()) (q 1 . 1) (q 18 5 (a 2 (c 2 (c 5 (c (- 11 (q . 1)) ())))))) 1) 1))",
@@ -709,7 +678,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "apply takes exactly 2 arguments",
+        err: "apply requires exactly 2 parameters",
     },
     RunProgramTest {
         prg: "(a (q 0x00ffffffffffffffffffff00) (q ()))",
@@ -725,7 +694,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "apply takes exactly 2 arguments",
+        err: "apply requires exactly 2 parameters",
     },
     RunProgramTest {
         prg: "(a (q . 1) (q . (100 200)))",
@@ -749,7 +718,7 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: None,
         cost: 0,
-        err: "in the ((X)...) syntax, the inner list takes exactly 1 argument",
+        err: "in ((X)...) syntax X must be lone atom",
     },
     RunProgramTest {
         prg: "((#c) (q . 3) (q . 4))",
@@ -757,14 +726,6 @@ const TEST_CASES: &[RunProgramTest] = &[
         flags: 0,
         result: Some("((1 . 3) 1 . 4)"),
         cost: 140,
-        err: "",
-    },
-    RunProgramTest {
-        prg: "((#+) 1 2 3)",
-        args: "()",
-        flags: 0,
-        result: Some("6"),
-        cost: 1168,
         err: "",
     },
     RunProgramTest {
@@ -962,7 +923,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 979))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -978,7 +939,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 959) (q . 9))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -994,7 +955,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 939) (q . 9) (q x))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1012,7 +973,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 9) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1021,7 +982,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 0x00000397) (q . 9) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1039,7 +1000,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 0x00ffffffff) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1057,7 +1018,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . -1) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1075,7 +1036,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q . 0x0100000000) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1093,7 +1054,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 919) (q 1 2 3) (q x) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1000,
         err: "",
@@ -1111,7 +1072,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1000))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "cost exceeded",
@@ -1120,7 +1081,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork)",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 0,
         err: "first of non-cons",
@@ -1128,7 +1089,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 0))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "cost must be > 0",
@@ -1137,7 +1098,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . -1))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "softfork requires positive int arg",
@@ -1145,7 +1106,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q 1 2 3))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1000,
         err: "softfork requires int arg",
@@ -1155,7 +1116,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 160) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 241,
         err: "",
@@ -1164,7 +1125,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 159) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 241,
         err: "cost exceeded",
@@ -1174,7 +1135,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 10000,
         err: "softfork specified cost mismatch",
@@ -1182,7 +1143,7 @@ const TEST_CASES: &[RunProgramTest] = &[
 
     // without the flag to enable the BLS extensions, it's an unknown extension
     RunProgramTest {
-        prg: "(softfork (q . 161) (q . 1) (q . (q . 42)) (q . ()))",
+        prg: "(softfork (q . 161) (q . 0) (q . (q . 42)) (q . ()))",
         args: "()",
         flags: NO_UNKNOWN_OPS,
         result: None,
@@ -1197,7 +1158,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q x) (q . 0)) (q . ())) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: None,
         cost: 1513,
         err: "klvm raise",
@@ -1207,7 +1168,7 @@ const TEST_CASES: &[RunProgramTest] = &[
     RunProgramTest {
         prg: "(softfork (q . 1432) (q . 0) (q a (i (= (coinid (q . 0x1234500000000000000000000000000000000000000000000000000000000000) (q . 0x6789abcdef000000000000000000000000000000000000000000000000000000) (q . 123456789)) (q . 0x69bfe81b052bfc6bd7f3fb9167fec61793175b897c16a35827f947d5cc98e4bc)) (q . 0) (q x)) (q . ())) (q . ()))",
         args: "()",
-        flags: 0,
+        flags: ENABLE_BLS_OPS,
         result: Some("()"),
         cost: 1513,
         err: "",
@@ -1241,46 +1202,6 @@ const TEST_CASES: &[RunProgramTest] = &[
         cost: 861,
         err: "unimplemented operator",
     },
-
-    // secp261k1
-
-    RunProgramTest {
-        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c018))",
-        args: "()",
-        flags: 0,
-        result: Some("0"),
-        cost: 1300061,
-        err: "",
-    },
-    // invalid signature
-    RunProgramTest {
-        prg: "(secp256k1_verify (q . 0x02888b0c110ef0b4962e3fc6929cbba7a8bb25b4b2c885f55c76365018c909b439) (q . 0x74c2941eb2ebe5aa4f2287a4c5e506a6290c045004058de97a7edf0122548668) (q . 0x1acb7a6e062e78ccd4237b12c22f02b5a8d9b33cb3ba13c35e88e036baa1cbca75253bb9a96ffc48b43196c69c2972d8f965b1baa4e52348d8081cde65e6c019))",
-        args: "()",
-        flags: 0,
-        result: None,
-        cost: 0,
-        err: "secp256k1_verify failed",
-    },
-
-    // secp261r1
-
-    RunProgramTest {
-        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffc))",
-        args: "()",
-        flags: 0,
-        result: Some("0"),
-        cost: 1850061,
-        err: "",
-    },
-    // invalid signature
-    RunProgramTest {
-        prg: "(secp256r1_verify (q . 0x0437a1674f3883b7171a11a20140eee014947b433723cf9f181a18fee4fcf96056103b3ff2318f00cca605e6f361d18ff0d2d6b817b1fa587e414f8bb1ab60d2b9) (q . 0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08) (q . 0xe8de121f4cceca12d97527cc957cca64a4bcfc685cffdee051b38ee81cb22d7e2c187fec82c731018ed2d56f08a4a5cbc40c5bfe9ae18c02295bb65e7f605ffd))",
-        args: "()",
-        flags: 0,
-        result: None,
-        cost: 0,
-        err: "secp256r1_verify failed",
-    },
 ];
 
 #[cfg(test)]
@@ -1297,8 +1218,8 @@ fn test_run_program() {
     for t in TEST_CASES {
         let mut allocator = Allocator::new();
 
-        let program = check(parse_exp(&mut allocator, t.prg));
-        let args = check(parse_exp(&mut allocator, t.args));
+        let program = check(parse_exp(&mut allocator, &t.prg));
+        let args = check(parse_exp(&mut allocator, &t.args));
         let expected_result = &t.result.map(|v| check(parse_exp(&mut allocator, v)));
 
         let dialect = ChikDialect::new(t.flags);
@@ -1340,10 +1261,9 @@ fn test_counters() {
     assert_eq!(counters.val_stack_usage, 3015);
     assert_eq!(counters.env_stack_usage, 1005);
     assert_eq!(counters.op_stack_usage, 3014);
-    assert_eq!(counters.atom_count, 998);
-    assert_eq!(counters.small_atom_count, 1042);
+    assert_eq!(counters.atom_count, 2040);
     assert_eq!(counters.pair_count, 22077);
-    assert_eq!(counters.heap_size, 769963);
+    assert_eq!(counters.heap_size, 771884);
 
     assert_eq!(result.unwrap().0, cost);
 }

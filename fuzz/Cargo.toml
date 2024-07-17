@@ -15,6 +15,10 @@ libfuzzer-sys = "0.4.6"
 path = ".."
 default-features = false
 
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
 [[bin]]
 name = "fuzz_run_program"
 path = "fuzz_targets/run_program.rs"
@@ -24,12 +28,6 @@ doc = false
 [[bin]]
 name = "fuzz_serialized_length"
 path = "fuzz_targets/serialized_length.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "fuzz_serialized_length_trusted"
-path = "fuzz_targets/serialized_length_trusted.rs"
 test = false
 doc = false
 
@@ -66,11 +64,5 @@ doc = false
 [[bin]]
 name = "operators"
 path = "fuzz_targets/operators.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "allocator"
-path = "fuzz_targets/allocator.rs"
 test = false
 doc = false

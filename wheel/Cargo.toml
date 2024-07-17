@@ -1,6 +1,6 @@
 [package]
 name = "klvm_rs"
-version = "0.7.0"
+version = "0.2.5"
 authors = ["Richard Kiss <him@richardkiss.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -16,7 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 klvmr = { path = ".." }
-pyo3 = { version = "=0.18.3", features = ["abi3-py38", "extension-module"] }
+pyo3 = { version = "=0.18.3", features = ["abi3-py37", "extension-module"] }
 
 [features]
 openssl = ["klvmr/openssl"]

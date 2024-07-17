@@ -1,7 +1,7 @@
 [package]
 name = "klvm-rs-test-tools"
 version = "0.1.0"
-authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chiknetwork.com>"]
+authors = ["Arvid Norberg <arvid@chik.net>"]
 edition = "2021"
 license = "Apache-2.0"
 description = "Developer tools for the KLVM interpreter"
@@ -9,18 +9,15 @@ homepage = "https://github.com/Chik-Network/klvm_rs/tools/"
 repository = "https://github.com/Chik-Network/klvm_rs/tools/"
 readme = "README.md"
 
+[profile.release]
+lto = true
+
 [dependencies]
-hex-literal = "=0.4.1"
 hex = "=0.4.3"
 rand = "0.8.4"
 sha1 = "=0.10.5"
 linreg = "=0.2.0"
 klvmr = { path = ".." }
-chik-bls = ">=0.2.13"
-num-bigint = "0.4.3"
-serde = { version ="1.0.163", features = ["derive"] }
-serde_json = "1.0.96"
-clap = { version = "=4.0.29", features = ["derive"] }
 
 [[bin]]
 name = "generate-fuzz-corpus"
@@ -32,7 +29,3 @@ name = "benchmark-klvm-cost"
 test = false
 bench = false
 
-[[bin]]
-name = "verify-zksnark"
-test = false
-bench = false

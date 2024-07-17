@@ -16,6 +16,7 @@
 ///
 /// All hashes correspond to sha256 tree hashes.
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
 
@@ -134,7 +135,10 @@ impl ReadCacheLookup {
         seen_ids.insert(id);
         let mut partial_paths = vec![(*id, vec![])];
 
-        while !partial_paths.is_empty() {
+        loop {
+            if partial_paths.is_empty() {
+                break;
+            }
             let mut new_partial_paths = vec![];
             for (node, path) in partial_paths.iter_mut() {
                 if *node == self.root_hash {
@@ -166,7 +170,7 @@ impl ReadCacheLookup {
         possible_responses
     }
 
-    /// If multiple paths exist, the lexicographically smallest one will be returned.
+    /// If multiple paths exist, the lexigraphically smallest one will be returned.
     pub fn find_path(&self, id: &Bytes32, serialized_length: u64) -> Option<Vec<u8>> {
         let mut paths = self.find_paths(id, serialized_length);
         if !paths.is_empty() {
@@ -256,7 +260,7 @@ fn test_read_cache_lookup() {
     // now let's push a `5` atom to the top
     // tree: `(5 . 0)`
     let hash_of_5_atom = hash_blobs(&[&[1], &[5]]);
-    rcl.push(hash_of_5_atom);
+    rcl.push(hash_of_5_atom.clone());
     let hash_of_cons_5_nil = hash_blobs(&[&[2], &hash_of_5_atom, &hash_of_nil]);
     assert_eq!(rcl.find_paths(&hash_of_cons_5_nil, large_max), [[1]]);
     assert_eq!(rcl.find_paths(&hash_of_5_atom, large_max), [[2]]);
@@ -272,7 +276,7 @@ fn test_read_cache_lookup() {
     // now let's push a `9` atom to the top
     // tree: `(9 . (5 . 0))`
     let hash_of_9_atom = hash_blobs(&[&[1], &[9]]);
-    rcl.push(hash_of_9_atom);
+    rcl.push(hash_of_9_atom.clone());
     let hash_of_cons_9_cons_5_nil = hash_blobs(&[&[2], &hash_of_9_atom, &hash_of_cons_5_nil]);
 
     assert_eq!(rcl.find_paths(&hash_of_cons_9_cons_5_nil, large_max), [[1]]);
@@ -294,7 +298,7 @@ fn test_read_cache_lookup() {
     // tree: `(10 . (9 . (5 . 0)))`
 
     let hash_of_10_atom = hash_blobs(&[&[1], &[10]]);
-    rcl.push(hash_of_10_atom);
+    rcl.push(hash_of_10_atom.clone());
     let hash_of_cons_10_cons_9_cons_5_nil =
         hash_blobs(&[&[2], &hash_of_10_atom, &hash_of_cons_9_cons_5_nil]);
     assert_eq!(
@@ -367,5 +371,5 @@ fn test_read_cache_lookup() {
     // the atom `1` is still not in the tree anywhere
     assert!(rcl.find_paths(&hash_of_1_atom, large_max).is_empty());
 
-    assert!(!rcl.count.contains_key(&hash_of_1_atom));
+    assert!(rcl.count.get(&hash_of_1_atom).is_none());
 }

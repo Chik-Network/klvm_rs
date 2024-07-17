@@ -8,7 +8,7 @@ use klvmr::cost::Cost;
 use klvmr::reduction::Response;
 use klvmr::run_program::run_program;
 use klvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
-use klvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+use klvmr::{LIMIT_HEAP, LIMIT_STACK, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -27,7 +27,7 @@ pub fn run_serialized_chik_program(
     flags: u32,
 ) -> PyResult<(u64, LazyNode)> {
     let mut allocator = if flags & LIMIT_HEAP != 0 {
-        Allocator::new_limited(500000000)
+        Allocator::new_limited(500000000, 62500000, 62500000)
     } else {
         Allocator::new()
     };
@@ -79,6 +79,7 @@ fn klvm_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
+    m.add("LIMIT_STACK", LIMIT_STACK)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
     m.add_class::<LazyNode>()?;
 

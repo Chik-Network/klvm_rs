@@ -11,16 +11,15 @@ use klvmr::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use klvmr::cost::Cost;
 use klvmr::more_ops::{
     op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
-    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
-    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_multiply, op_not, op_point_add,
+    op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract,
 };
 use klvmr::reduction::{EvalErr, Response};
-use klvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 use klvmr::serde::node_from_bytes;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
-const FUNS: [Opf; 45] = [
+const FUNS: [Opf; 41] = [
     op_if as Opf,
     op_cons as Opf,
     op_first as Opf,
@@ -63,11 +62,6 @@ const FUNS: [Opf; 45] = [
     op_bls_map_to_g2 as Opf,
     op_bls_pairing_identity as Opf,
     op_bls_verify as Opf,
-    op_mod as Opf,
-    op_modpow as Opf,
-    // Secp operators
-    op_secp256k1_verify as Opf,
-    op_secp256r1_verify as Opf,
 ];
 
 fuzz_target!(|data: &[u8]| {

@@ -1,9 +1,12 @@
-use crate::allocator::{Allocator, Atom, NodePtr, NodeVisitor, SExp};
+use crate::allocator::Allocator;
+use crate::allocator::SExp::Atom;
 use crate::cost::Cost;
 use crate::err_utils::err;
+use crate::node::Node;
 use crate::number::Number;
 use crate::reduction::EvalErr;
 use crate::reduction::{Reduction, Response};
+use bls12_381::Scalar;
 use lazy_static::lazy_static;
 use num_bigint::{BigUint, Sign};
 use num_integer::Integer;
@@ -11,304 +14,118 @@ use num_integer::Integer;
 // We ascribe some additional cost per byte for operations that allocate new atoms
 pub const MALLOC_COST_PER_BYTE: Cost = 10;
 
-pub fn get_args<const N: usize>(
-    a: &Allocator,
-    args: NodePtr,
-    name: &str,
-) -> Result<[NodePtr; N], EvalErr> {
-    match_args::<N>(a, args).ok_or_else(|| {
-        EvalErr(
-            args,
-            format!(
-                "{name} takes exactly {N} argument{}",
-                if N == 1 { "" } else { "s" }
-            ),
-        )
-    })
-}
-
-pub fn match_args<const N: usize>(a: &Allocator, args: NodePtr) -> Option<[NodePtr; N]> {
-    let mut next = args;
-    let mut counter = 0;
-    let mut ret = [NodePtr::NIL; N];
-
-    while let Some((first, rest)) = a.next(next) {
-        next = rest;
-        if counter == N {
-            return None;
-        }
-        ret[counter] = first;
-        counter += 1;
-    }
-
-    if counter != N {
-        None
+pub fn check_arg_count(args: &Node, expected: usize, name: &str) -> Result<(), EvalErr> {
+    if arg_count(args, expected) != expected {
+        args.err(&format!(
+            "{} takes exactly {} argument{}",
+            name,
+            expected,
+            if expected == 1 { "" } else { "s" }
+        ))
     } else {
-        Some(ret)
+        Ok(())
     }
 }
 
-#[test]
-fn test_get_args() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let a2 = a.new_number(0.into()).unwrap();
-    let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.nil();
-    let args1 = a.new_pair(a3, args0).unwrap();
-    let args2 = a.new_pair(a2, args1).unwrap();
-    let args3 = a.new_pair(a1, args2).unwrap();
-    let args4 = a.new_pair(a0, args3).unwrap();
-
-    assert_eq!(get_args::<4>(&a, args4, "test").unwrap(), [a0, a1, a2, a3]);
-
-    let r = get_args::<3>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes exactly 3 arguments");
-
-    let r = get_args::<5>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes exactly 5 arguments");
-
-    let r = get_args::<4>(&a, args3, "test").unwrap_err();
-    assert_eq!(r.0, args3);
-    assert_eq!(r.1, "test takes exactly 4 arguments");
-
-    let r = get_args::<4>(&a, args2, "test").unwrap_err();
-    assert_eq!(r.0, args2);
-    assert_eq!(r.1, "test takes exactly 4 arguments");
-
-    let r = get_args::<1>(&a, args2, "test").unwrap_err();
-    assert_eq!(r.0, args2);
-    assert_eq!(r.1, "test takes exactly 1 argument");
+pub fn arg_count(args: &Node, return_early_if_exceeds: usize) -> usize {
+    let mut count = 0;
+    // It would be nice to have a trait that wouldn't require us to copy every
+    // node
+    let mut ptr = args.clone();
+    while let Some((_, next)) = ptr.pair() {
+        ptr = next.clone();
+        count += 1;
+        if count > return_early_if_exceeds {
+            break;
+        };
+    }
+    count
 }
 
-pub fn get_varargs<const N: usize>(
-    a: &Allocator,
-    args: NodePtr,
-    name: &str,
-) -> Result<([NodePtr; N], usize), EvalErr> {
-    let mut next = args;
-    let mut counter = 0;
-    let mut ret = [NodePtr::NIL; N];
+#[test]
+fn test_arg_count() {
+    use crate::allocator::Allocator;
 
-    while let Some((first, rest)) = a.next(next) {
-        next = rest;
-        if counter == N {
-            return err(
-                args,
-                &format!(
-                    "{name} takes no more than {N} argument{}",
-                    if N == 1 { "" } else { "s" }
-                ),
-            );
+    let mut allocator = Allocator::new();
+    let null = allocator.null();
+    let ptr_0_args = null;
+    let ptr_1_args = allocator.new_pair(null, ptr_0_args).unwrap();
+    let ptr_2_args = allocator.new_pair(null, ptr_1_args).unwrap();
+    let ptr_3_args = allocator.new_pair(null, ptr_2_args).unwrap();
+
+    let count_0_args: Node = Node::new(&allocator, ptr_0_args);
+    assert_eq!(arg_count(&count_0_args, 0), 0);
+    assert_eq!(arg_count(&count_0_args, 1), 0);
+    assert_eq!(arg_count(&count_0_args, 2), 0);
+
+    let count_1_args: Node = Node::new(&allocator, ptr_1_args);
+    assert_eq!(arg_count(&count_1_args, 0), 1);
+    assert_eq!(arg_count(&count_1_args, 1), 1);
+    assert_eq!(arg_count(&count_1_args, 2), 1);
+
+    let count_2_args: Node = Node::new(&allocator, ptr_2_args);
+    assert_eq!(arg_count(&count_2_args, 0), 1);
+    assert_eq!(arg_count(&count_2_args, 1), 2);
+    assert_eq!(arg_count(&count_2_args, 2), 2);
+    assert_eq!(arg_count(&count_2_args, 3), 2);
+
+    let count_3_args: Node = Node::new(&allocator, ptr_3_args);
+    assert_eq!(arg_count(&count_3_args, 0), 1);
+    assert_eq!(arg_count(&count_3_args, 1), 2);
+    assert_eq!(arg_count(&count_3_args, 2), 3);
+    assert_eq!(arg_count(&count_3_args, 3), 3);
+    assert_eq!(arg_count(&count_3_args, 4), 3);
+}
+
+pub fn int_atom(args: Node, op_name: &str) -> Result<(Number, usize), EvalErr> {
+    match args.sexp() {
+        Atom(_) => Ok((
+            args.allocator.number(args.node),
+            args.allocator.atom_len(args.node),
+        )),
+        _ => args.err(&format!("{op_name} requires int args")),
+    }
+}
+
+pub fn atom_len(args: Node, op_name: &str) -> Result<usize, EvalErr> {
+    match args.sexp() {
+        Atom(_) => Ok(args.allocator.atom_len(args.node)),
+        _ => args.err(&format!("{op_name} requires an atom")),
+    }
+}
+
+pub fn uint_atom<const SIZE: usize>(args: &Node, op_name: &str) -> Result<u64, EvalErr> {
+    let bytes = match args.atom() {
+        Some(a) => a,
+        _ => {
+            return args.err(&format!("{op_name} requires int arg"));
         }
-        ret[counter] = first;
-        counter += 1;
+    };
+
+    if bytes.is_empty() {
+        return Ok(0);
     }
 
-    Ok((ret, counter))
-}
-
-#[test]
-fn test_get_varargs() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let a2 = a.new_number(0.into()).unwrap();
-    let a3 = a.new_atom(&[]).unwrap();
-    let args0 = a.nil();
-    let args1 = a.new_pair(a3, args0).unwrap();
-    let args2 = a.new_pair(a2, args1).unwrap();
-    let args3 = a.new_pair(a1, args2).unwrap();
-    let args4 = a.new_pair(a0, args3).unwrap();
-
-    // happy path
-    assert_eq!(
-        get_varargs::<4>(&a, args4, "test").unwrap(),
-        ([a0, a1, a2, a3], 4)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args3, "test").unwrap(),
-        ([a1, a2, a3, NodePtr::NIL], 3)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args2, "test").unwrap(),
-        ([a2, a3, NodePtr::NIL, NodePtr::NIL], 2)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args1, "test").unwrap(),
-        ([a3, NodePtr::NIL, NodePtr::NIL, NodePtr::NIL], 1)
-    );
-    assert_eq!(
-        get_varargs::<4>(&a, args0, "test").unwrap(),
-        ([NodePtr::NIL; 4], 0)
-    );
-
-    let r = get_varargs::<3>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes no more than 3 arguments");
-
-    let r = get_varargs::<1>(&a, args4, "test").unwrap_err();
-    assert_eq!(r.0, args4);
-    assert_eq!(r.1, "test takes no more than 1 argument");
-}
-
-pub fn nilp(a: &Allocator, n: NodePtr) -> bool {
-    match a.sexp(n) {
-        SExp::Atom => a.atom_len(n) == 0,
-        _ => false,
+    if (bytes[0] & 0x80) != 0 {
+        return args.err(&format!("{op_name} requires positive int arg"));
     }
-}
 
-#[test]
-fn test_nilp() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let a3 = a.new_number(0.into()).unwrap();
-    let a4 = a.new_atom(&[]).unwrap();
-    let a5 = a.nil();
-    let pair = a.new_pair(a0, a1).unwrap();
-    assert!(!nilp(&a, pair));
-    assert!(!nilp(&a, a0));
-    assert!(!nilp(&a, a1));
-    assert!(nilp(&a, a3));
-    assert!(nilp(&a, a4));
-    assert!(nilp(&a, a5));
-}
-
-pub fn first(a: &Allocator, n: NodePtr) -> Result<NodePtr, EvalErr> {
-    match a.sexp(n) {
-        SExp::Pair(first, _) => Ok(first),
-        _ => err(n, "first of non-cons"),
+    // strip leading zeros
+    let mut buf: &[u8] = bytes;
+    while !buf.is_empty() && buf[0] == 0 {
+        buf = &buf[1..];
     }
-}
 
-#[test]
-fn test_first() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let pair = a.new_pair(a0, a1).unwrap();
-    assert_eq!(first(&a, pair).unwrap(), a0);
-
-    let r = first(&a, a0).unwrap_err();
-    assert_eq!(r.0, a0);
-    assert_eq!(r.1, "first of non-cons");
-}
-
-pub fn rest(a: &Allocator, n: NodePtr) -> Result<NodePtr, EvalErr> {
-    match a.sexp(n) {
-        SExp::Pair(_, rest) => Ok(rest),
-        _ => err(n, "rest of non-cons"),
+    if buf.len() > SIZE {
+        return args.err(&format!("{op_name} requires u{} arg", SIZE * 8));
     }
-}
 
-#[test]
-fn test_rest() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let pair = a.new_pair(a0, a1).unwrap();
-    assert_eq!(rest(&a, pair).unwrap(), a1);
-
-    let r = rest(&a, a0).unwrap_err();
-    assert_eq!(r.0, a0);
-    assert_eq!(r.1, "rest of non-cons");
-}
-
-pub fn int_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<(Number, usize), EvalErr> {
-    match a.sexp(args) {
-        SExp::Atom => Ok((a.number(args), a.atom_len(args))),
-        _ => err(args, &format!("{op_name} requires int args")),
+    let mut ret = 0;
+    for b in buf {
+        ret <<= 8;
+        ret |= *b as u64;
     }
-}
-
-#[cfg(test)]
-#[rstest]
-#[case(0.into(), (0.into(), 0))]
-#[case(1.into(), (1.into(), 1))]
-#[case(42.into(), (42.into(), 1))]
-#[case(1337.into(), (1337.into(), 2))]
-#[case(0x5fffff.into(), (0x5fffff.into(), 3))]
-#[case(0xffffff.into(), (0xffffff.into(), 4))]
-fn test_int_atom(#[case] value: Number, #[case] expected: (Number, usize)) {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(value).unwrap();
-    assert_eq!(int_atom(&a, a0, "test").unwrap(), expected);
-}
-
-#[test]
-fn test_int_atom_failure() {
-    let mut a = Allocator::new();
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let pair = a.new_pair(a0, a1).unwrap();
-    let r = int_atom(&a, pair, "test").unwrap_err();
-    assert_eq!(r.0, pair);
-    assert_eq!(r.1, "test requires int args");
-}
-
-pub fn atom_len(a: &Allocator, args: NodePtr, op_name: &str) -> Result<usize, EvalErr> {
-    match a.sexp(args) {
-        SExp::Atom => Ok(a.atom_len(args)),
-        _ => err(args, &format!("{op_name} requires an atom")),
-    }
-}
-
-#[test]
-fn test_atom_len() {
-    let mut a = Allocator::new();
-
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
-    let pair = a.new_pair(a0, a1).unwrap();
-
-    let r = atom_len(&a, pair, "test").unwrap_err();
-    assert_eq!(r.0, pair);
-    assert_eq!(r.1, "test requires an atom");
-
-    assert_eq!(atom_len(&a, a0, "test").unwrap(), 1);
-    assert_eq!(atom_len(&a, a1, "test").unwrap(), 2);
-}
-
-pub fn uint_atom<const SIZE: usize>(
-    a: &Allocator,
-    args: NodePtr,
-    op_name: &str,
-) -> Result<u64, EvalErr> {
-    match a.node(args) {
-        NodeVisitor::Buffer(bytes) => {
-            if bytes.is_empty() {
-                return Ok(0);
-            }
-
-            if (bytes[0] & 0x80) != 0 {
-                return err(args, &format!("{op_name} requires positive int arg"));
-            }
-
-            // strip leading zeros
-            let mut buf: &[u8] = bytes;
-            while !buf.is_empty() && buf[0] == 0 {
-                buf = &buf[1..];
-            }
-
-            if buf.len() > SIZE {
-                return err(args, &format!("{op_name} requires u{} arg", SIZE * 8));
-            }
-
-            let mut ret = 0;
-            for b in buf {
-                ret <<= 8;
-                ret |= *b as u64;
-            }
-            Ok(ret)
-        }
-        NodeVisitor::U32(val) => Ok(val as u64),
-        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int arg")),
-    }
+    Ok(ret)
 }
 
 #[cfg(test)]
@@ -330,7 +147,7 @@ fn test_uint_atom_4_success(#[case] buf: &[u8], #[case] expected: u64) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<4>(&a, n, "test") == Ok(expected));
+    assert!(uint_atom::<4>(&Node::new(&a, n), "test") == Ok(expected));
 }
 
 // u32, 4 bytes
@@ -345,7 +162,7 @@ fn test_uint_atom_4_failure(#[case] buf: &[u8], #[case] expected: &str) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<4>(&a, n, "test") == err(n, expected));
+    assert!(uint_atom::<4>(&Node::new(&a, n), "test") == Err(EvalErr(n, expected.to_string())));
 }
 
 #[test]
@@ -354,7 +171,10 @@ fn test_uint_atom_4_pair() {
     let mut a = Allocator::new();
     let n = a.new_atom(&[0, 0]).unwrap();
     let p = a.new_pair(n, n).unwrap();
-    assert!(uint_atom::<4>(&a, p, "test") == err(p, "test requires int arg"));
+    assert!(
+        uint_atom::<4>(&Node::new(&a, p), "test")
+            == Err(EvalErr(p, "test requires int arg".to_string()))
+    );
 }
 
 // u64, 8 bytes
@@ -377,7 +197,7 @@ fn test_uint_atom_8_success(#[case] buf: &[u8], #[case] expected: u64) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<8>(&a, n, "test") == Ok(expected));
+    assert!(uint_atom::<8>(&Node::new(&a, n), "test") == Ok(expected));
 }
 
 // u64, 8 bytes
@@ -393,7 +213,7 @@ fn test_uint_atom_8_failure(#[case] buf: &[u8], #[case] expected: &str) {
     use crate::allocator::Allocator;
     let mut a = Allocator::new();
     let n = a.new_atom(buf).unwrap();
-    assert!(uint_atom::<8>(&a, n, "test") == err(n, expected));
+    assert!(uint_atom::<8>(&Node::new(&a, n), "test") == Err(EvalErr(n, expected.to_string())));
 }
 
 #[test]
@@ -402,14 +222,24 @@ fn test_uint_atom_8_pair() {
     let mut a = Allocator::new();
     let n = a.new_atom(&[0, 0]).unwrap();
     let p = a.new_pair(n, n).unwrap();
-    assert!(uint_atom::<8>(&a, p, "test") == err(p, "test requires int arg"));
+    assert!(
+        uint_atom::<8>(&Node::new(&a, p), "test")
+            == Err(EvalErr(p, "test requires int arg".to_string()))
+    );
 }
 
-pub fn atom<'a>(a: &'a Allocator, n: NodePtr, op_name: &str) -> Result<Atom<'a>, EvalErr> {
-    if n.is_pair() {
-        return err(n, &format!("{op_name} on list"));
+pub fn atom<'a>(args: Node<'a>, op_name: &str) -> Result<&'a [u8], EvalErr> {
+    match args.atom() {
+        Some(a) => Ok(a),
+        _ => args.err(&format!("{op_name} on list")),
     }
-    Ok(a.atom(n))
+}
+
+pub fn two_ints(args: &Node, op_name: &str) -> Result<(Number, usize, Number, usize), EvalErr> {
+    check_arg_count(args, 2, op_name)?;
+    let (n0, n0_len) = int_atom(args.first()?, op_name)?;
+    let (n1, n1_len) = int_atom(args.rest()?.first()?, op_name)?;
+    Ok((n0, n0_len, n1, n1_len))
 }
 
 fn u32_from_u8_impl(buf: &[u8], signed: bool) -> Option<u32> {
@@ -530,45 +360,51 @@ fn test_u64_from_bytes() {
     );
 }
 
-pub fn i32_atom(a: &Allocator, args: NodePtr, op_name: &str) -> Result<i32, EvalErr> {
-    match a.node(args) {
-        NodeVisitor::Buffer(buf) => match i32_from_u8(buf) {
-            Some(v) => Ok(v),
-            _ => err(
-                args,
-                &format!("{op_name} requires int32 args (with no leading zeros)"),
-            ),
-        },
-        NodeVisitor::U32(val) => Ok(val as i32),
-        NodeVisitor::Pair(_, _) => err(args, &format!("{op_name} requires int32 args")),
+pub fn i32_atom(args: &Node, op_name: &str) -> Result<i32, EvalErr> {
+    let buf = match args.atom() {
+        Some(a) => a,
+        _ => {
+            return args.err(&format!("{op_name} requires int32 args"));
+        }
+    };
+    match i32_from_u8(buf) {
+        Some(v) => Ok(v),
+        _ => args.err(&format!(
+            "{op_name} requires int32 args (with no leading zeros)"
+        )),
     }
 }
 
-#[test]
-fn test_i32_atom() {
-    let mut a = Allocator::new();
+impl<'a> Node<'a> {
+    pub fn first(&self) -> Result<Node<'a>, EvalErr> {
+        match self.pair() {
+            Some((p1, _)) => Ok(self.with_node(p1.node)),
+            _ => self.err("first of non-cons"),
+        }
+    }
 
-    let a0 = a.new_number(42.into()).unwrap();
-    let a1 = a.new_number(1337.into()).unwrap();
+    pub fn rest(&self) -> Result<Node<'a>, EvalErr> {
+        match self.pair() {
+            Some((_, p2)) => Ok(self.with_node(p2.node)),
+            _ => self.err("rest of non-cons"),
+        }
+    }
 
-    let pair = a.new_pair(a0, a1).unwrap();
+    pub fn err<T>(&self, msg: &str) -> Result<T, EvalErr> {
+        err(self.node, msg)
+    }
+}
 
-    let r = i32_atom(&a, pair, "test").unwrap_err();
-    assert_eq!(r.0, pair);
-    assert_eq!(r.1, "test requires int32 args");
-
-    assert_eq!(i32_atom(&a, a0, "test").unwrap(), 42);
-    assert_eq!(i32_atom(&a, a1, "test").unwrap(), 1337);
-
-    let a2 = a.new_number(0x100000000_i64.into()).unwrap();
-    let r = i32_atom(&a, a2, "test").unwrap_err();
-    assert_eq!(r.0, a2);
-    assert_eq!(r.1, "test requires int32 args (with no leading zeros)");
-
-    let a3 = a.new_number((-0xffffffff_i64).into()).unwrap();
-    let r = i32_atom(&a, a3, "test").unwrap_err();
-    assert_eq!(r.0, a3);
-    assert_eq!(r.1, "test requires int32 args (with no leading zeros)");
+pub fn number_to_scalar(n: Number) -> Scalar {
+    let (sign, as_u8): (Sign, Vec<u8>) = n.to_bytes_le();
+    let mut scalar_array: [u8; 32] = [0; 32];
+    scalar_array[..as_u8.len()].clone_from_slice(&as_u8[..]);
+    let exp: Scalar = Scalar::from_bytes(&scalar_array).unwrap();
+    if sign == Sign::Minus {
+        exp.neg()
+    } else {
+        exp
+    }
 }
 
 pub fn new_atom_and_cost(a: &mut Allocator, cost: Cost, buf: &[u8]) -> Response {

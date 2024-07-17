@@ -82,7 +82,7 @@ pub fn parse_atom(
     if first_byte == 0x01 {
         Ok(allocator.one())
     } else if first_byte == 0x80 {
-        Ok(allocator.nil())
+        Ok(allocator.null())
     } else {
         let blob = parse_atom_ptr(f, first_byte)?;
         Ok(allocator.new_atom(blob)?)
@@ -99,6 +99,9 @@ pub fn parse_path<'a>(f: &'a mut Cursor<&[u8]>) -> Result<&'a [u8]> {
 
 #[cfg(test)]
 use std::io::ErrorKind;
+
+#[cfg(test)]
+use hex;
 
 #[cfg(test)]
 use super::write_atom::write_atom;
@@ -170,24 +173,24 @@ fn test_truncated_decode_size() {
 
 #[cfg(test)]
 fn check_parse_atom(blob: &[u8], expected_atom: &[u8]) {
-    let mut cursor = Cursor::<&[u8]>::new(blob);
+    let mut cursor = Cursor::<&[u8]>::new(&blob);
     let mut first: [u8; 1] = [0];
-    cursor.read_exact(&mut first).unwrap();
+    cursor.read(&mut first).unwrap();
     let first = first[0];
 
     let mut allocator = Allocator::new();
     let atom_node = parse_atom(&mut allocator, first, &mut cursor).unwrap();
 
-    let atom = allocator.atom(atom_node);
+    let atom_ptr = allocator.atom(atom_node);
 
-    assert_eq!(expected_atom, atom.as_ref());
+    assert_eq!(expected_atom, atom_ptr);
 }
 
 #[cfg(test)]
 fn check_parse_atom_str(blob_hex: &str, expected_atom_hex: &str) {
     let blob = hex::decode(blob_hex).unwrap();
     let expected_atom: &[u8] = &hex::decode(expected_atom_hex).unwrap();
-    check_parse_atom(&blob, expected_atom);
+    check_parse_atom(&blob, &expected_atom);
 }
 
 #[test]
