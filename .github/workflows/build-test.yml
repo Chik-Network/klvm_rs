@@ -112,7 +112,7 @@ jobs:
       run: |
         . ./activate
         python -m pip install pytest
-        python -m pip install blspy
+        python -m pip install blspy==2.0.2
 
     - name: Run tests from wheel
       run: |
