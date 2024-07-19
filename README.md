@@ -4,17 +4,15 @@ The cargo workspace includes an rlib crate, for use with rust or other applicati
 
 The python wheel is in `wheel`. The npm package is in `wasm`.
 
+## TESTS
 
-TESTS
------
 In order to run the unit tests, run:
 
 ```
 cargo test
 ```
 
-Fuzzing
--------
+## Fuzzing
 
 The fuzzing infrastructure for `klvm_rs` uses [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 
@@ -35,4 +33,4 @@ cargo fuzz run fuzz_run_program --jobs=32 -- -rss_limit_mb=4096
 
 But with whatever number of jobs works best for you.
 
-If you find issues in `klvm_rs` please see the [Bug Bounty program](https://www.chiknetwork.com/2021/10/21/bugcrowd-bounty-launch.en.html).
+If you find issues in `klvm_rs` please use our [bug bounty program](https://hackerone.com/chik_network).
