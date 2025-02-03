@@ -10,17 +10,19 @@ repository = "https://github.com/Chik-Network/klvm_rs/tools/"
 readme = "README.md"
 
 [dependencies]
-hex-literal = "0.4.1"
-hex = "0.4.3"
-rand = "0.8.5"
-sha1 = "0.10.6"
-linreg = "0.2.0"
-klvmr = { path = ".." }
-chik-bls = "0.10.0"
-num-bigint = "0.4.6"
-serde = { version = "1.0.204", features = ["derive"] }
-serde_json = "1.0.120"
-clap = { version = "4.5.9", features = ["derive"] }
+hex-literal = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+sha1 = { workspace = true }
+linreg = { workspace = true }
+klvmr = { workspace = true }
+chik-bls = { workspace = true }
+num-bigint = { workspace = true }
+num-integer = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+rand_chacha = { workspace = true }
 
 [[bin]]
 name = "generate-fuzz-corpus"
@@ -34,5 +36,10 @@ bench = false
 
 [[bin]]
 name = "verify-zksnark"
+test = false
+bench = false
+
+[[bin]]
+name = "generate-modpow-tests"
 test = false
 bench = false

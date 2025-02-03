@@ -24,17 +24,22 @@ Follow this checklist when adding operators:
 - Include the new operators in the fuzzer `fuzz/fuzz_targets/operators.rs`
 - Include the new operators and their signatures in `tools/src/bin/generate-fuzz-corpus.rs`.
   Make sure to run this and fuzz for some time before landing the PR.
-- extend the benchmark-klvm-cost.rs to include benchmarks for the new operator,
+- Extend the benchmark-klvm-cost.rs to include benchmarks for the new operator,
   to establish its cost.
-- The opcode decoding and dispatching happens in `src/ChikDialect.rs`
+- The opcode decoding and dispatching happens in `src/chik_dialect.rs`
+- Add support for the new operators in `src/test_ops.rs` `parse_atom()`, to
+  compile the name of the operator to its corresponding opcode.
+- If the operator(s) are part of an extension to `softfork`, add another value
+  to the `OperatorSet` enum.
 - Add a new flag (in `src/chik_dialect.rs`) that controls whether the
   operators are activated or not. This is required in order for the chain to exist
   in a state _before_ your soft-fork has activated, and behave consistently with
   versions of the node that doesn't know about your new operators.
   Make sure the value of the flag does not collide with any of the flags in
-  [chik_rs](https://github.com/Chik-Network/chik_rs/blob/main/src/gen/flags.rs).
+  [chik_rs](https://github.com/Chik-Network/chik_rs/blob/main/crates/chik-consensus/src/gen/flags.rs).
   This is a quirk where both of these repos share the same flags space.
 - Once a soft-fork has activated, if everything on chain before the softfork is
   compatible with the new rules (which is likely and ought to be the ambition
   with all soft-forks), all logic surrounding activating or deactivating the
   soft-fork should be removed.
+- Expose the new flag(s) to python in chik_rs.

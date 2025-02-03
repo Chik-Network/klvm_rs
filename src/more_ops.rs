@@ -530,23 +530,6 @@ pub fn op_div(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
     if a1.sign() == Sign::NoSign {
         err(input, "div with 0")
     } else {
-        if a0.sign() == Sign::Minus || a1.sign() == Sign::Minus {
-            return err(input, "div operator with negative operands is deprecated");
-        }
-        let q = a0.div_floor(&a1);
-        let q = a.new_number(q)?;
-        Ok(malloc_cost(a, cost, q))
-    }
-}
-
-pub fn op_div_fixed(a: &mut Allocator, input: NodePtr, _max_cost: Cost) -> Response {
-    let [v0, v1] = get_args::<2>(a, input, "/")?;
-    let (a0, a0_len) = int_atom(a, v0, "/")?;
-    let (a1, a1_len) = int_atom(a, v1, "/")?;
-    let cost = DIV_BASE_COST + ((a0_len + a1_len) as Cost) * DIV_COST_PER_BYTE;
-    if a1.sign() == Sign::NoSign {
-        err(input, "div with 0")
-    } else {
         let q = a0.div_floor(&a1);
         let q = a.new_number(q)?;
         Ok(malloc_cost(a, cost, q))
@@ -999,43 +982,47 @@ pub fn op_modpow(a: &mut Allocator, input: NodePtr, max_cost: Cost) -> Response 
 }
 
 #[cfg(test)]
-fn test_sha256_atom(buf: &[u8]) {
-    let mut a = Allocator::new();
-    let mut args = a.nil();
-    let v = a.new_atom(buf).unwrap();
-    args = a.new_pair(v, args).unwrap();
-    let v = a.new_small_number(1).unwrap();
-    args = a.new_pair(v, args).unwrap();
+mod tests {
+    use super::*;
 
-    let cost = SHA256_BASE_COST
-        + (2 * SHA256_COST_PER_ARG)
-        + ((1 + buf.len()) as Cost * SHA256_COST_PER_BYTE)
-        + 32 * MALLOC_COST_PER_BYTE;
-    let Reduction(actual_cost, result) = op_sha256(&mut a, args, cost).unwrap();
+    fn test_sha256_atom(buf: &[u8]) {
+        let mut a = Allocator::new();
+        let mut args = a.nil();
+        let v = a.new_atom(buf).unwrap();
+        args = a.new_pair(v, args).unwrap();
+        let v = a.new_small_number(1).unwrap();
+        args = a.new_pair(v, args).unwrap();
 
-    let mut hasher = Sha256::new();
-    hasher.update([1_u8]);
-    if !buf.is_empty() {
-        hasher.update(buf);
+        let cost = SHA256_BASE_COST
+            + (2 * SHA256_COST_PER_ARG)
+            + ((1 + buf.len()) as Cost * SHA256_COST_PER_BYTE)
+            + 32 * MALLOC_COST_PER_BYTE;
+        let Reduction(actual_cost, result) = op_sha256(&mut a, args, cost).unwrap();
+
+        let mut hasher = Sha256::new();
+        hasher.update([1_u8]);
+        if !buf.is_empty() {
+            hasher.update(buf);
+        }
+
+        println!("buf: {buf:?}");
+        assert_eq!(a.atom(result).as_ref(), hasher.finalize().as_slice());
+        assert_eq!(actual_cost, cost);
     }
 
-    println!("buf: {buf:?}");
-    assert_eq!(a.atom(result).as_ref(), hasher.finalize().as_slice());
-    assert_eq!(actual_cost, cost);
-}
+    #[test]
+    fn sha256_small_values() {
+        test_sha256_atom(&[]);
+        for val in 0..255 {
+            test_sha256_atom(&[val]);
+        }
 
-#[test]
-fn sha256_small_values() {
-    test_sha256_atom(&[]);
-    for val in 0..255 {
-        test_sha256_atom(&[val]);
-    }
+        for val in 0..255 {
+            test_sha256_atom(&[0, val]);
+        }
 
-    for val in 0..255 {
-        test_sha256_atom(&[0, val]);
-    }
-
-    for val in 0..255 {
-        test_sha256_atom(&[0xff, val]);
+        for val in 0..255 {
+            test_sha256_atom(&[0xff, val]);
+        }
     }
 }

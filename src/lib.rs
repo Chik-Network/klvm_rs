@@ -6,6 +6,7 @@ pub mod cost;
 pub mod dialect;
 pub mod err_utils;
 pub mod f_table;
+pub mod keccak256_ops;
 pub mod more_ops;
 pub mod number;
 pub mod op_utils;
@@ -21,9 +22,7 @@ pub use allocator::{Allocator, Atom, NodePtr, SExp};
 pub use chik_dialect::ChikDialect;
 pub use run_program::run_program;
 
-pub use chik_dialect::{
-    ENABLE_BLS_OPS_OUTSIDE_GUARD, ENABLE_FIXED_DIV, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
-};
+pub use chik_dialect::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;

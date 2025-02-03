@@ -9,11 +9,8 @@ edition = "2021"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4.6"
-
-[dependencies.klvmr]
-path = ".."
-default-features = false
+libfuzzer-sys = { workspace = true }
+klvmr = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"
@@ -72,5 +69,11 @@ doc = false
 [[bin]]
 name = "allocator"
 path = "fuzz_targets/allocator.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "keccak"
+path = "fuzz_targets/keccak.rs"
 test = false
 doc = false

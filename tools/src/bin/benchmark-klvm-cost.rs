@@ -1,6 +1,6 @@
 use clap::Parser;
 use klvmr::allocator::{Allocator, NodePtr};
-use klvmr::chik_dialect::{ChikDialect, ENABLE_BLS_OPS_OUTSIDE_GUARD};
+use klvmr::chik_dialect::ChikDialect;
 use klvmr::run_program::run_program;
 use linreg::linear_regression_of;
 use std::fs::{create_dir_all, File};
@@ -118,7 +118,7 @@ fn substitute(args: Placeholder, s: NodePtr) -> OpArgs {
 fn time_invocation(a: &mut Allocator, op: u32, arg: OpArgs, flags: u32) -> f64 {
     let call = build_call(a, op, arg, 1, None);
     //println!("{:x?}", &Node::new(a, call));
-    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChikDialect::new(0);
     let start = Instant::now();
     let r = run_program(a, &dialect, call, a.nil(), 11000000000);
     if (flags & ALLOW_FAILURE) == 0 {
@@ -169,7 +169,7 @@ fn time_per_byte(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f6
 // establish how much time each additional argument contributes
 fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChikDialect::new(0);
 
     let subst = a
         .new_atom(
@@ -182,7 +182,7 @@ fn time_per_arg(a: &mut Allocator, op: &Operator, output: &mut dyn Write) -> f64
     let checkpoint = a.checkpoint();
 
     for _k in 0..3 {
-        for i in 0..100 {
+        for i in (0..1000).step_by(5) {
             let call = build_call(a, op.opcode, arg, i, op.extra);
             let start = Instant::now();
             let r = run_program(a, &dialect, call, a.nil(), 11000000000);
@@ -212,7 +212,7 @@ fn base_call_time(
     output: &mut dyn Write,
 ) -> f64 {
     let mut samples = Vec::<(f64, f64)>::new();
-    let dialect = ChikDialect::new(ENABLE_BLS_OPS_OUTSIDE_GUARD);
+    let dialect = ChikDialect::new(0);
 
     let subst = a
         .new_atom(
@@ -380,7 +380,7 @@ pub fn main() {
         .unwrap();
     let number = quote(&mut a, number);
 
-    let ops: [Operator; 17] = [
+    let ops: [Operator; 19] = [
         Operator {
             opcode: 60,
             name: "modpow (modulus cost)",
@@ -499,6 +499,20 @@ pub fn main() {
             arg: Placeholder::ThreeArgs(Some(r1_pk), Some(r1_msg), Some(r1_sig)),
             extra: None,
             flags: ALLOW_FAILURE,
+        },
+        Operator {
+            opcode: 11,
+            name: "sha256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
+        },
+        Operator {
+            opcode: 62,
+            name: "keccak256",
+            arg: Placeholder::SingleArg(Some(g1)),
+            extra: None,
+            flags: NESTING_BASE_COST | PER_ARG_COST | PER_BYTE_COST | LARGE_BUFFERS,
         },
     ];
 

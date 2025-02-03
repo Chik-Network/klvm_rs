@@ -8,11 +8,11 @@ use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_re
 use crate::cost::Cost;
 use crate::dialect::{Dialect, OperatorSet};
 use crate::err_utils::err;
+use crate::keccak256_ops::op_keccak256;
 use crate::more_ops::{
-    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_div_fixed, op_divmod, op_gr,
-    op_gr_bytes, op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow,
-    op_multiply, op_not, op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr,
-    op_subtract, op_unknown,
+    op_add, op_all, op_any, op_ash, op_coinid, op_concat, op_div, op_divmod, op_gr, op_gr_bytes,
+    op_logand, op_logior, op_lognot, op_logxor, op_lsh, op_mod, op_modpow, op_multiply, op_not,
+    op_point_add, op_pubkey_for_exp, op_sha256, op_strlen, op_substr, op_subtract, op_unknown,
 };
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
@@ -25,13 +25,13 @@ pub const NO_UNKNOWN_OPS: u32 = 0x0002;
 // the number of pairs
 pub const LIMIT_HEAP: u32 = 0x0004;
 
-// enables the BLS ops extensions *outside* the softfork guard. This is a
-// hard-fork and should only be enabled when it activates
-pub const ENABLE_BLS_OPS_OUTSIDE_GUARD: u32 = 0x0020;
+// enables the keccak256 op *outside* the softfork guard.
+// This is a hard-fork and should only be enabled when it activates
+pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
 
-// enabling this is a hard fork. This will allow negative numbers in the
-// division operator
-pub const ENABLE_FIXED_DIV: u32 = 0x0080;
+// enables the keccak softfork extension. This is a soft-fork and
+// should be set for blocks past the activation height.
+pub const ENABLE_KECCAK: u32 = 0x0200;
 
 // The default mode when running grnerators in mempool-mode (i.e. the stricter
 // mode)
@@ -72,9 +72,16 @@ impl Dialect for ChikDialect {
     ) -> Response {
         let flags = self.flags
             | match extension {
-                OperatorSet::BLS => ENABLE_BLS_OPS_OUTSIDE_GUARD,
-                _ => 0,
+                // This is the default set of operators, so no special flags need to be added.
+                OperatorSet::Default => 0,
+
+                // Since BLS has been hardforked in universally, this has no effect.
+                OperatorSet::Bls => 0,
+
+                // Keccak is allowed as if it were a default operator, inside of the softfork guard.
+                OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
+
         let op_len = allocator.atom_len(o);
         if op_len == 4 {
             // these are unknown operators with assigned cost
@@ -128,13 +135,7 @@ impl Dialect for ChikDialect {
             16 => op_add,
             17 => op_subtract,
             18 => op_multiply,
-            19 => {
-                if (flags & ENABLE_FIXED_DIV) != 0 {
-                    op_div_fixed
-                } else {
-                    op_div
-                }
-            }
+            19 => op_div,
             20 => op_divmod,
             21 => op_gr,
             22 => op_ash,
@@ -152,25 +153,21 @@ impl Dialect for ChikDialect {
             34 => op_all,
             // 35 ---
             // 36 = softfork
-            48..=61 if (flags & ENABLE_BLS_OPS_OUTSIDE_GUARD) != 0 => match op {
-                48 => op_coinid,
-                49 => op_bls_g1_subtract,
-                50 => op_bls_g1_multiply,
-                51 => op_bls_g1_negate,
-                52 => op_bls_g2_add,
-                53 => op_bls_g2_subtract,
-                54 => op_bls_g2_multiply,
-                55 => op_bls_g2_negate,
-                56 => op_bls_map_to_g1,
-                57 => op_bls_map_to_g2,
-                58 => op_bls_pairing_identity,
-                59 => op_bls_verify,
-                60 => op_modpow,
-                61 => op_mod,
-                _ => {
-                    unreachable!();
-                }
-            },
+            48 => op_coinid,
+            49 => op_bls_g1_subtract,
+            50 => op_bls_g1_multiply,
+            51 => op_bls_g1_negate,
+            52 => op_bls_g2_add,
+            53 => op_bls_g2_subtract,
+            54 => op_bls_g2_multiply,
+            55 => op_bls_g2_negate,
+            56 => op_bls_map_to_g1,
+            57 => op_bls_map_to_g2,
+            58 => op_bls_pairing_identity,
+            59 => op_bls_verify,
+            60 => op_modpow,
+            61 => op_mod,
+            62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -192,8 +189,18 @@ impl Dialect for ChikDialect {
     // return the Operators it enables (or None) if we don't know what it means
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
         match ext {
-            0 => OperatorSet::BLS,
-            // new extensions go here
+            // Extension 0 is for the BLS operators, and is still valid.
+            // However, the extension doesn't add any addition opcodes,
+            // because the BLS operators were hardforked into the main set.
+            0 => OperatorSet::Bls,
+
+            // Extension 1 is for the keccak256 operator.
+            // This is only considered valid in the mempool if it's enabled with the flag.
+            // This is to prevent submission of spends with keccak until the softfork activates.
+            1 if (self.flags & ENABLE_KECCAK) != 0 => OperatorSet::Keccak,
+
+            // Extensions 2 and beyond are considered invalid by the mempool.
+            // However, all future extensions are valid in consensus mode and reserved for future softforks.
             _ => OperatorSet::Default,
         }
     }
