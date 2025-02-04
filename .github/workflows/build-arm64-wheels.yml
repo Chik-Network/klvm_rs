@@ -72,7 +72,7 @@ jobs:
 
       - name: publish (PyPi)
         if: startsWith(github.event.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish:67339c736fd9354cd4f8cb0b744f2b82a74b5c70
         with:
           packages-dir: target/wheels/
           skip-existing: true
