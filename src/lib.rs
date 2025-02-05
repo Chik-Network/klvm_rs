@@ -15,14 +15,15 @@ pub mod run_program;
 pub mod runtime_dialect;
 pub mod secp_ops;
 pub mod serde;
-pub mod sha2;
 pub mod traverse_path;
 
 pub use allocator::{Allocator, Atom, NodePtr, SExp};
 pub use chik_dialect::ChikDialect;
 pub use run_program::run_program;
 
-pub use chik_dialect::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+pub use chik_dialect::{
+    ENABLE_KECCAK, ENABLE_KECCAK_OPS_OUTSIDE_GUARD, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+};
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;

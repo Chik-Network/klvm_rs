@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use klvmr::sha2::Sha256;
+use chik_sha2::Sha256;
 
 const BYTE_LENGTHS: [u8; 6] = [8, 16, 32, 64, 96, 128];
 const MAX_VAL: u8 = 250;

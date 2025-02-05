@@ -11,6 +11,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = { workspace = true }
 klvmr = { workspace = true }
+chik-sha2 = { workspace = true }
+hex = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"
@@ -75,5 +77,23 @@ doc = false
 [[bin]]
 name = "keccak"
 path = "fuzz_targets/keccak.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "object-cache"
+path = "fuzz_targets/object_cache.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "serializer"
+path = "fuzz_targets/serializer.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "incremental-serializer"
+path = "fuzz_targets/incremental_serializer.rs"
 test = false
 doc = false

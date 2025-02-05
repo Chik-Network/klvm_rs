@@ -1,4 +1,4 @@
-use crate::sha2::Sha256;
+use chik_sha2::Sha256;
 
 pub type Bytes32 = [u8; 32];
 
