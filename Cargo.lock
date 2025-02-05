@@ -832,7 +832,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "klvmr",
  "pyo3",
@@ -850,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_wasm"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "getrandom",
  "js-sys",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "klvmr"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "bitvec",
  "chik-bls",
