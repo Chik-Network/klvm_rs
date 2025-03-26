@@ -1,8 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use klvmr::allocator::Allocator;
 use klvmr::serde::{
-    node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs,
-    serialized_length_from_bytes, serialized_length_from_bytes_trusted, tree_hash_from_stream,
+    node_from_bytes, node_from_bytes_backrefs, node_from_bytes_backrefs_old,
+    node_to_bytes_backrefs, serialized_length_from_bytes, serialized_length_from_bytes_trusted,
+    tree_hash_from_stream,
 };
 use std::include_bytes;
 use std::time::Instant;
