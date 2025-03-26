@@ -10,9 +10,10 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = { workspace = true }
-klvmr = { workspace = true }
+klvmr = { workspace = true, features = ["counters"] }
 chik-sha2 = { workspace = true }
 hex = { workspace = true }
+arbitrary = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"
@@ -95,5 +96,17 @@ doc = false
 [[bin]]
 name = "incremental-serializer"
 path = "fuzz_targets/incremental_serializer.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "serializer-cmp"
+path = "fuzz_targets/serializer_cmp.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "tree-cache"
+path = "fuzz_targets/tree_cache.rs"
 test = false
 doc = false

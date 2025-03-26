@@ -21,6 +21,7 @@ use bitvec::vec::BitVec;
 use std::collections::{HashMap, HashSet};
 
 use super::bytes32::{hash_blob, hash_blobs, Bytes32};
+use super::serialized_length::atom_length_bits;
 
 #[derive(Debug, Clone)]
 pub struct ReadCacheLookup {
@@ -141,7 +142,7 @@ impl ReadCacheLookup {
             RandomState::default(),
         );
 
-        let max_bytes_for_path_encoding = serialized_length - 2; // 1 byte for 0xfe, 1 min byte for savings
+        let max_bytes_for_path_encoding = serialized_length - 1; // 1 byte for 0xfe
         let max_path_length: usize = (max_bytes_for_path_encoding.saturating_mul(8) - 1)
             .try_into()
             .unwrap_or(usize::MAX);
@@ -153,7 +154,17 @@ impl ReadCacheLookup {
             let mut new_partial_paths = vec![];
             for (node, path) in partial_paths.iter_mut() {
                 if *node == self.root_hash {
-                    possible_responses.push(reversed_path_to_vec_u8(path));
+                    // make sure we never return a path that needs more (or the
+                    // same) bytes to serialize than the node we're referencing.
+                    // path.len() + 1 is because reversed_path_to_vec_u8() will
+                    // also add the "terminator" bit, at the far left (MSB)
+                    // if we have 8 steps to traverse, we need 9 bits to represent
+                    // it as a path
+                    if let Some(path_len) = atom_length_bits(path.len() as u64 + 1) {
+                        if path_len <= max_bytes_for_path_encoding {
+                            possible_responses.push(reversed_path_to_vec_u8(path));
+                        }
+                    }
                     continue;
                 }
 
@@ -162,12 +173,14 @@ impl ReadCacheLookup {
                     for (parent, direction) in items.iter() {
                         if *(self.count.get(parent).unwrap_or(&0)) > 0 && !seen_ids.contains(parent)
                         {
-                            if path.len() + 1 > max_path_length {
+                            if path.len() > max_path_length {
                                 return possible_responses;
                             }
-                            let mut new_path = path.clone();
-                            new_path.push(*direction);
-                            new_partial_paths.push((*parent, new_path));
+                            if path.len() < max_path_length {
+                                let mut new_path = path.clone();
+                                new_path.push(*direction);
+                                new_partial_paths.push((*parent, new_path));
+                            }
                         }
                         seen_ids.insert(parent);
                     }

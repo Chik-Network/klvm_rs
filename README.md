@@ -1,5 +1,13 @@
 Rust implementation of klvm.
 
+![GitHub](https://img.shields.io/github/license/Chik-Network/klvm_rs?logo=Github)
+[![Coverage Status](https://coveralls.io/repos/github/Chik-Network/klvm_rs/badge.svg?branch=main)](https://coveralls.io/github/Chik-Network/klvm_rs?branch=main)
+![Build Crate](https://github.com/Chik-Network/klvm_rs/actions/workflows/build-crate.yml/badge.svg)
+![Build Wheels](https://github.com/Chik-Network/klvm_rs/actions/workflows/build-test.yml/badge.svg)
+
+![PyPI](https://img.shields.io/pypi/v/klvm_rs?logo=pypi)
+[![Crates.io](https://img.shields.io/crates/v/klvmr.svg)](https://crates.io/crates/klvmr)
+
 The cargo workspace includes an rlib crate, for use with rust or other applications, and a python wheel.
 
 The python wheel is in `wheel`. The npm package is in `wasm`.

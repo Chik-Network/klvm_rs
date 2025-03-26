@@ -69,17 +69,13 @@ jobs:
           if [ ! -f "activate" ]; then ln -s venv/bin/activate; fi
           . ./activate
           pip install setuptools_rust
-          pip install twine
 
       - name: publish (PyPi)
         if: startsWith(github.event.ref, 'refs/tags')
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_NON_INTERACTIVE: 1
-          TWINE_PASSWORD: ${{ secrets.pypi_password }}
-        run: |
-          . ./activate
-          twine upload --non-interactive --skip-existing --verbose 'target/wheels/*'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: target/wheels/
+          skip-existing: true
 
       - name: Clean up AMR64
         if: startsWith(matrix.os, 'ARM64')

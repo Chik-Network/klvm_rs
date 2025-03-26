@@ -64,6 +64,15 @@ fn deserialize_benchmark(c: &mut Criterion) {
                 start.elapsed()
             })
         });
+
+        group.bench_function(format!("node_from_bytes_backrefs_old{name_suffix}"), |b| {
+            b.iter(|| {
+                a.restore_checkpoint(&iter_checkpoint);
+                let start = Instant::now();
+                node_from_bytes_backrefs_old(&mut a, bl).expect("node_from_bytes_backrefs_old");
+                start.elapsed()
+            })
+        });
     }
 
     let mut a = Allocator::new();
