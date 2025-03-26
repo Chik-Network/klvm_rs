@@ -2,7 +2,8 @@ use criterion::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
 use klvmr::allocator::Allocator;
 use klvmr::serde::{
-    node_from_bytes, node_from_bytes_backrefs, node_to_bytes, node_to_bytes_backrefs, Serializer,
+    node_from_bytes, node_from_bytes_backrefs, node_to_bytes_backrefs, node_to_bytes_limit,
+    Serializer,
 };
 use std::include_bytes;
 use std::time::Instant;
