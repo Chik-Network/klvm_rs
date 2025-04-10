@@ -818,7 +818,7 @@ dependencies = [
 
 [[package]]
 name = "klvm-rs-test-tools"
-version = "0.12.1"
+version = "0.13.1"
 dependencies = [
  "chik-bls",
  "clap",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs"
-version = "0.12.1"
+version = "0.13.1"
 dependencies = [
  "klvmr",
  "pyo3",
@@ -856,7 +856,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_wasm"
-version = "0.12.1"
+version = "0.13.1"
 dependencies = [
  "getrandom",
  "js-sys",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "klvmr"
-version = "0.12.1"
+version = "0.13.1"
 dependencies = [
  "bitvec",
  "bumpalo",
