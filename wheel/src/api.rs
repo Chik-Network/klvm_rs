@@ -6,6 +6,7 @@ use crate::adapt_response::adapt_response;
 use klvmr::allocator::Allocator;
 use klvmr::chik_dialect::ChikDialect;
 use klvmr::cost::Cost;
+use klvmr::error::EvalErr;
 use klvmr::reduction::Response;
 use klvmr::run_program::run_program;
 use klvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
@@ -14,9 +15,14 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
 
+fn eval_to_py(err: EvalErr) -> PyErr {
+    // Rarely Used in python bindings.
+    pyo3::exceptions::PyValueError::new_err(err.to_string())
+}
+
 #[pyfunction]
 pub fn serialized_length(program: &[u8]) -> PyResult<u64> {
-    Ok(serialized_length_from_bytes(program)?)
+    serialized_length_from_bytes(program).map_err(eval_to_py)
 }
 
 #[pyfunction]
@@ -34,8 +40,8 @@ pub fn run_serialized_chik_program(
     };
 
     let r: Response = (|| -> PyResult<Response> {
-        let program = node_from_bytes(&mut allocator, program)?;
-        let args = node_from_bytes(&mut allocator, args)?;
+        let program = node_from_bytes(&mut allocator, program).map_err(eval_to_py)?;
+        let args = node_from_bytes(&mut allocator, args).map_err(eval_to_py)?;
         let dialect = ChikDialect::new(flags);
 
         Ok(py.allow_threads(|| run_program(&mut allocator, &dialect, program, args, max_cost)))
@@ -66,7 +72,7 @@ fn deserialize_as_tree(
     calculate_tree_hashes: bool,
 ) -> PyResult<(Vec<PyObject>, Option<Vec<PyObject>>)> {
     let mut cursor = io::Cursor::new(blob);
-    let (r, tree_hashes) = parse_triples(&mut cursor, calculate_tree_hashes)?;
+    let (r, tree_hashes) = parse_triples(&mut cursor, calculate_tree_hashes).map_err(eval_to_py)?;
     let r = r.iter().map(|pt| tuple_for_parsed_triple(py, pt)).collect();
     let s = tree_hashes.map(|ths| {
         ths.iter()

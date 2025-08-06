@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "klvm-rs-test-tools"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "chik-bls",
  "clap",
@@ -814,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "klvmr",
  "pyo3",
@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs-fuzz"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "arbitrary",
  "chik-sha2",
@@ -833,7 +833,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_wasm"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "getrandom",
  "js-sys",
@@ -844,7 +844,7 @@ dependencies = [
 
 [[package]]
 name = "klvmr"
-version = "0.15.0"
+version = "0.16.0"
 dependencies = [
  "bitvec",
  "bumpalo",
@@ -863,6 +863,7 @@ dependencies = [
  "rstest",
  "sha1",
  "sha3",
+ "thiserror",
 ]
 
 [[package]]

@@ -4,12 +4,12 @@ mod make_tree;
 mod node_eq;
 
 use klvmr::allocator::{Allocator, NodePtr, SExp};
+use klvmr::error::Result;
 use klvmr::serde::node_from_bytes_backrefs;
 use klvmr::serde::write_atom::write_atom;
 use klvmr::serde::ReadCacheLookup;
 use klvmr::serde::TreeCache;
 use klvmr::serde::{serialized_length, treehash, ObjectCache};
-use std::io;
 use std::io::Cursor;
 use std::io::Write;
 
@@ -28,7 +28,7 @@ enum ReadOp {
 
 // make sure back-references returned by ReadCacheLookup are smaller than the
 // node they reference and compare ReadCacheLookup and ObjectCache against TreeCache
-pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> io::Result<Vec<u8>> {
+pub fn compare_back_references(allocator: &Allocator, node: NodePtr) -> Result<Vec<u8>> {
     let mut f = Cursor::new(Vec::new());
 
     let mut read_op_stack: Vec<ReadOp> = vec![ReadOp::Parse];
