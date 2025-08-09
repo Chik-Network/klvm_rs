@@ -1,6 +1,6 @@
 [package]
 name = "klvm-rs-test-tools"
-version = "0.16.0"
+version = "0.16.1"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chiknetwork.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -8,6 +8,7 @@ description = "Developer tools for the KLVM interpreter"
 homepage = "https://github.com/Chik-Network/klvm_rs/tools/"
 repository = "https://github.com/Chik-Network/klvm_rs/tools/"
 readme = "README.md"
+publish = false
 
 [dependencies]
 hex-literal = { workspace = true }

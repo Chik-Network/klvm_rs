@@ -1,6 +1,6 @@
 [package]
 name = "klvm_rs-fuzz"
-version = "0.16.0"
+version = "0.16.1"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>"]
 publish = false
 edition = "2021"
@@ -11,9 +11,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = { workspace = true }
 klvmr = { workspace = true, features = ["counters"] }
-chik-sha2 = { workspace = true }
-hex = { workspace = true }
 arbitrary = { workspace = true }
+klvm-fuzzing = { workspace = true }
 
 [[bin]]
 name = "fuzz_run_program"

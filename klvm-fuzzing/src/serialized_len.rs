@@ -7,7 +7,6 @@ enum Op {
     Cons(NodePtr),
     Traverse(NodePtr),
 }
-
 pub fn compute_serialized_len(a: &Allocator, n: NodePtr) -> u64 {
     let mut stack: Vec<u64> = vec![];
     let mut op_stack = vec![Op::Traverse(n)];

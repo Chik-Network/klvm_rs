@@ -1,7 +1,7 @@
 #![no_main]
-use libfuzzer_sys::fuzz_target;
 
-mod make_tree;
+use klvm_fuzzing::make_tree;
+use libfuzzer_sys::fuzz_target;
 
 use klvmr::allocator::{Allocator, NodePtr};
 use klvmr::bls_ops::{
@@ -78,7 +78,7 @@ const FUNS: [Opf; 46] = [
 fuzz_target!(|data: &[u8]| {
     let mut unstructured = arbitrary::Unstructured::new(data);
     let mut allocator = Allocator::new();
-    let (args, _) = make_tree::make_tree(&mut allocator, &mut unstructured);
+    let (args, _) = make_tree(&mut allocator, &mut unstructured);
 
     let allocator_checkpoint = allocator.checkpoint();
 
