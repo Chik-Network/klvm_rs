@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest]
         python: [3.8]
 
     steps:
@@ -61,7 +61,7 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/ws --workdir=/ws \
-            quay.io/pypa/manylinux_2_28_x86_64 \
+            quay.io/pypa/manylinux_2_28_x86_64:2025.09.01-1 \
             bash -exc '\
               curl -L https://sh.rustup.rs > rustup-init.sh && \
               sh rustup-init.sh -y && \
@@ -185,7 +185,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-latest]
+        os: [macos-15-intel, ubuntu-latest]
         python: [3.8]
     steps:
       - uses: actions/checkout@v4
@@ -220,7 +220,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-latest, windows-latest]
+        os: [macos-15-intel, ubuntu-latest, windows-latest]
         python: [3.8]
     steps:
       - uses: actions/checkout@v4
