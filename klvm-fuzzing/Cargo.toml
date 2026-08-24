@@ -1,6 +1,6 @@
 [package]
 name = "klvm-fuzzing"
-version = "0.16.1"
+version = "0.16.2"
 edition = "2021"
 license = "Apache-2.0"
 description = "Fuzzing tools for klvm Projects on Rust"
@@ -14,7 +14,7 @@ cargo-fuzz = true
 
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
-klvmr = { workspace = true, features = ["counters"] }
+klvmr = { workspace = true }
 chik-sha2 = { workspace = true }
 anyhow = { workspace = true }
 
