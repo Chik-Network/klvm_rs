@@ -1,6 +1,6 @@
 [package]
 name = "klvm-rs-test-tools"
-version = "0.16.2"
+version = "0.16.3"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chiknetwork.com>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -42,5 +42,10 @@ bench = false
 
 [[bin]]
 name = "generate-modpow-tests"
+test = false
+bench = false
+
+[[bin]]
+name = "generate-stress-tests"
 test = false
 bench = false

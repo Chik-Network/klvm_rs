@@ -1,6 +1,6 @@
 [package]
 name = "klvm-fuzzing"
-version = "0.16.2"
+version = "0.16.3"
 edition = "2021"
 license = "Apache-2.0"
 description = "Fuzzing tools for klvm Projects on Rust"
