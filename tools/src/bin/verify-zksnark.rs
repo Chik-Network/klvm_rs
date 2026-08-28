@@ -1,4 +1,4 @@
-use chik_bls::{aggregate_pairing, G1Element, G2Element};
+use chik_bls::{G1Element, G2Element, aggregate_pairing};
 use num_bigint::BigInt;
 use serde::Deserialize;
 

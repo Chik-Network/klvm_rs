@@ -9,8 +9,8 @@ use klvmr::cost::Cost;
 use klvmr::error::EvalErr;
 use klvmr::reduction::Response;
 use klvmr::run_program::run_program;
-use klvmr::serde::{node_from_bytes, parse_triples, serialized_length_from_bytes, ParsedTriple};
-use klvmr::{LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+use klvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
+use klvmr::{ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -91,6 +91,7 @@ fn klvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
+    m.add("ENABLE_SHA256_TREE", ENABLE_SHA256_TREE)?;
     m.add_class::<LazyNode>()?;
 
     Ok(())

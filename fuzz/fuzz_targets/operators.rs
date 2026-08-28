@@ -20,10 +20,11 @@ use klvmr::more_ops::{
 };
 use klvmr::reduction::Response;
 use klvmr::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
+use klvmr::sha_tree_op::op_sha256_tree;
 
 type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
 
-const FUNS: [Opf; 46] = [
+const FUNS: [Opf; 47] = [
     op_if as Opf,
     op_cons as Opf,
     op_first as Opf,
@@ -73,6 +74,8 @@ const FUNS: [Opf; 46] = [
     op_secp256r1_verify as Opf,
     // keccak operator
     op_keccak256 as Opf,
+    // shatree operator
+    op_sha256_tree as Opf,
 ];
 
 fuzz_target!(|data: &[u8]| {

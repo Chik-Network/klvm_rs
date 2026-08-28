@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion, SamplingMode};
+use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
 use klvmr::allocator::{Allocator, NodePtr};
 use klvmr::chik_dialect::ChikDialect;
 use klvmr::serde::node_from_bytes_backrefs;

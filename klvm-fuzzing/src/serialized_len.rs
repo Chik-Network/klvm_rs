@@ -1,7 +1,7 @@
 use klvmr::serde::node_to_bytes;
 use klvmr::{Allocator, NodePtr, SExp};
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 enum Op {
     Cons(NodePtr),

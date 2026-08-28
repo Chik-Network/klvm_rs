@@ -1,8 +1,8 @@
 [package]
 name = "klvm-rs-test-tools"
-version = "0.16.3"
+version = "0.16.4"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chiknetwork.com>"]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 description = "Developer tools for the KLVM interpreter"
 homepage = "https://github.com/Chik-Network/klvm_rs/tools/"

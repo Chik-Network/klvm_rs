@@ -2,7 +2,7 @@
 
 use klvm_fuzzing::{make_tree, node_eq};
 use klvmr::allocator::Allocator;
-use klvmr::serde::{node_from_bytes_backrefs, node_to_bytes_backrefs, Serializer};
+use klvmr::serde::{Serializer, node_from_bytes_backrefs, node_to_bytes_backrefs};
 
 use libfuzzer_sys::fuzz_target;
 

@@ -1,8 +1,8 @@
 #![no_main]
 use klvm_fuzzing::{compute_serialized_len, make_tree_limits, pick_node, tree_hash};
 
-use klvmr::serde::{serialized_length, treehash, ObjectCache};
 use klvmr::Allocator;
+use klvmr::serde::{ObjectCache, serialized_length, treehash};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

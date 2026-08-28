@@ -1,9 +1,9 @@
 [package]
 name = "klvm_rs-fuzz"
-version = "0.16.3"
+version = "0.16.4"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>"]
 publish = false
-edition = "2021"
+edition = "2024"
 
 [package.metadata]
 cargo-fuzz = true

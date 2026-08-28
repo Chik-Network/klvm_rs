@@ -1,9 +1,9 @@
 #![no_main]
 
 use klvm_fuzzing::make_tree_limits;
+use klvmr::Allocator;
 use klvmr::serde::is_canonical_serialization;
 use klvmr::serde::node_to_bytes_backrefs;
-use klvmr::Allocator;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
