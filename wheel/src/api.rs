@@ -5,12 +5,14 @@ use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
 use klvmr::allocator::Allocator;
 use klvmr::chik_dialect::ChikDialect;
+use klvmr::chik_dialect::{
+    CANONICAL_INTS, DISABLE_OP, ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
+};
 use klvmr::cost::Cost;
 use klvmr::error::EvalErr;
 use klvmr::reduction::Response;
 use klvmr::run_program::run_program;
 use klvmr::serde::{ParsedTriple, node_from_bytes, parse_triples, serialized_length_from_bytes};
-use klvmr::{ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
 use pyo3::wrap_pyfunction;
@@ -92,6 +94,8 @@ fn klvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("LIMIT_HEAP", LIMIT_HEAP)?;
     m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
     m.add("ENABLE_SHA256_TREE", ENABLE_SHA256_TREE)?;
+    m.add("DISABLE_OP", DISABLE_OP)?;
+    m.add("CANONICAL_INTS", CANONICAL_INTS)?;
     m.add_class::<LazyNode>()?;
 
     Ok(())
