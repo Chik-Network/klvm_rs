@@ -1,6 +1,6 @@
 [package]
 name = "klvm_rs-fuzz"
-version = "0.17.2"
+version = "0.17.3"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>"]
 publish = false
 edition = "2024"

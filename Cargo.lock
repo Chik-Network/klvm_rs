@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "klvm-fuzzing"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -841,7 +841,7 @@ dependencies = [
 
 [[package]]
 name = "klvm-rs-test-tools"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "bitflags",
  "chik-bls",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "klvmr",
  "pyo3",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "klvm_rs-fuzz"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "arbitrary",
  "klvm-fuzzing",
@@ -882,7 +882,7 @@ dependencies = [
 
 [[package]]
 name = "klvmr"
-version = "0.17.2"
+version = "0.17.3"
 dependencies = [
  "bitflags",
  "bitvec",

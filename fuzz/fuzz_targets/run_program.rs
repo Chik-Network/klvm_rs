@@ -21,7 +21,12 @@ fuzz_target!(|data: &[u8]| -> Corpus {
 
     let allocator_checkpoint = allocator.checkpoint();
 
-    for flags in [KlvmFlags::empty(), KlvmFlags::NO_UNKNOWN_OPS, MEMPOOL_MODE] {
+    for flags in [
+        KlvmFlags::empty(),
+        KlvmFlags::NO_UNKNOWN_OPS,
+        MEMPOOL_MODE,
+        KlvmFlags::LIMITS,
+    ] {
         let dialect = ChikDialect::new(flags.union(KlvmFlags::DISABLE_OP));
         allocator.restore_checkpoint(&allocator_checkpoint);
 

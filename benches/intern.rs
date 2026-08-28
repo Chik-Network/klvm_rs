@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use klvmr::allocator::Allocator;
-use klvmr::serde::{intern, node_from_bytes, node_from_bytes_backrefs, node_to_bytes_limit};
+use klvmr::serde::{intern_tree, node_from_bytes, node_from_bytes_backrefs, node_to_bytes_limit};
 use std::include_bytes;
 use std::time::Instant;
 
@@ -34,7 +34,7 @@ fn intern_benchmark(c: &mut Criterion) {
         group.bench_function(format!("intern {name}"), |b| {
             b.iter(|| {
                 let start = Instant::now();
-                let _tree = intern(&a, node).expect("intern");
+                let _tree = intern_tree(&a, node).expect("intern_tree");
                 start.elapsed()
             })
         });

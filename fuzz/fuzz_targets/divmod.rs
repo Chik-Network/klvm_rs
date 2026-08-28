@@ -2,10 +2,9 @@
 
 use klvm_fuzzing::build_args;
 use klvmr::allocator::{Allocator, NodePtr, SExp};
+use klvmr::chik_dialect::KlvmFlags;
 use klvmr::cost::Cost;
-use klvmr::more_ops::{
-    op_div, op_div_malachite, op_divmod, op_divmod_malachite, op_mod, op_mod_malachite,
-};
+use klvmr::more_ops::{op_div, op_divmod, op_mod};
 use klvmr::number::Number;
 use klvmr::reduction::{Reduction, Response};
 use libfuzzer_sys::fuzz_target;
@@ -14,7 +13,24 @@ use num_integer::Integer;
 
 const MAX_COST: Cost = 6_000_000_000;
 
-type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
+type Opf = fn(&mut Allocator, NodePtr, Cost, KlvmFlags) -> Response;
+
+fn canonical_atom_len(n: &Number) -> usize {
+    let bytes = n.to_signed_bytes_be();
+    let mut slice = bytes.as_slice();
+    while !slice.is_empty() && slice[0] == 0 {
+        if slice.len() > 1 && (slice[1] & 0x80 == 0x80) {
+            break;
+        }
+        slice = &slice[1..];
+    }
+    slice.len()
+}
+
+fn exceeds_limits(a: &Number, b: &Number, flags: KlvmFlags) -> bool {
+    flags.contains(KlvmFlags::LIMITS)
+        && (canonical_atom_len(a) > 256 || canonical_atom_len(b) > 1024)
+}
 
 fn check_binary_op(
     op: Opf,
@@ -22,15 +38,23 @@ fn check_binary_op(
     a: &Number,
     b: &Number,
     name: &str,
+    flags: KlvmFlags,
 ) {
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[a, b]);
-    let klvm_result = op(&mut alloc, args, MAX_COST);
-    if b.sign() == Sign::NoSign {
-        assert!(klvm_result.is_err(), "{name}({a}, 0): KLVM should fail");
+    let klvm_result = op(&mut alloc, args, MAX_COST, flags);
+    if b.sign() == Sign::NoSign || exceeds_limits(a, b, flags) {
+        assert!(
+            klvm_result.is_err(),
+            "{name}({a}, {b}): KLVM should fail (div_by_zero={}, exceeds_limits={})",
+            b.sign() == Sign::NoSign,
+            exceeds_limits(a, b, flags)
+        );
         return;
     }
-    let Reduction(_cost, result) = klvm_result.expect(name);
+    let Reduction(_cost, result) = klvm_result.unwrap_or_else(|e| {
+        panic!("{name}({a}, {b}): unexpected error: {e:?}");
+    });
     assert_eq!(
         alloc.number(result),
         reference(a, b),
@@ -38,16 +62,22 @@ fn check_binary_op(
     );
 }
 
-fn check_divmod(op: Opf, a: &Number, b: &Number, name: &str) {
+fn check_divmod(op: Opf, a: &Number, b: &Number, name: &str, flags: KlvmFlags) {
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[a, b]);
-    let klvm_result = op(&mut alloc, args, MAX_COST);
-    if b.sign() == Sign::NoSign {
-        assert!(klvm_result.is_err(), "{name}({a}, 0): KLVM should fail");
+    let klvm_result = op(&mut alloc, args, MAX_COST, flags);
+    if b.sign() == Sign::NoSign || exceeds_limits(a, b, flags) {
+        assert!(
+            klvm_result.is_err(),
+            "{name}({a}, {b}): KLVM should fail (div_by_zero={}, exceeds_limits={})",
+            b.sign() == Sign::NoSign,
+            exceeds_limits(a, b, flags)
+        );
         return;
     }
-    let Reduction(_cost, result) =
-        klvm_result.unwrap_or_else(|_| panic!("{name}: KLVM failed unexpectedly"));
+    let Reduction(_cost, result) = klvm_result.unwrap_or_else(|e| {
+        panic!("{name}({a}, {b}): unexpected error: {e:?}");
+    });
     let (expected_q, expected_r) = a.div_mod_floor(b);
     let SExp::Pair(left, right) = alloc.sexp(result) else {
         panic!("{name}({a}, {b}): result is not a pair");
@@ -68,22 +98,14 @@ fuzz_target!(|input: (Vec<u8>, Vec<u8>)| {
     let a = Number::from_signed_bytes_be(&input.0);
     let b = Number::from_signed_bytes_be(&input.1);
 
-    check_binary_op(op_div, |a, b| a.div_floor(b), &a, &b, "div");
-    check_binary_op(
-        op_div_malachite,
-        |a, b| a.div_floor(b),
-        &a,
-        &b,
-        "div_malachite",
-    );
-    check_binary_op(op_mod, |a, b| a.mod_floor(b), &a, &b, "mod");
-    check_binary_op(
-        op_mod_malachite,
-        |a, b| a.mod_floor(b),
-        &a,
-        &b,
-        "mod_malachite",
-    );
-    check_divmod(op_divmod, &a, &b, "divmod");
-    check_divmod(op_divmod_malachite, &a, &b, "divmod_malachite");
+    for flags in [
+        KlvmFlags::empty(),
+        KlvmFlags::MALACHITE,
+        KlvmFlags::LIMITS,
+        KlvmFlags::MALACHITE.union(KlvmFlags::LIMITS),
+    ] {
+        check_binary_op(op_div, |a, b| a.div_floor(b), &a, &b, "div", flags);
+        check_binary_op(op_mod, |a, b| a.mod_floor(b), &a, &b, "mod", flags);
+        check_divmod(op_divmod, &a, &b, "divmod", flags);
+    }
 });

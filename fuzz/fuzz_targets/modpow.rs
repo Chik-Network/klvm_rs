@@ -2,9 +2,10 @@
 
 use klvm_fuzzing::build_args;
 use klvmr::allocator::{Allocator, NodePtr};
+use klvmr::chik_dialect::KlvmFlags;
 use klvmr::cost::Cost;
 use klvmr::error::EvalErr;
-use klvmr::more_ops::{op_modpow, op_modpow_malachite};
+use klvmr::more_ops::op_modpow;
 use klvmr::number::Number;
 use klvmr::reduction::Response;
 use libfuzzer_sys::fuzz_target;
@@ -12,12 +13,19 @@ use num_bigint::Sign;
 
 const MAX_COST: Cost = 6_000_000_000;
 
-type Opf = fn(&mut Allocator, NodePtr, Cost) -> Response;
+type Opf = fn(&mut Allocator, NodePtr, Cost, KlvmFlags) -> Response;
 
-fn check_modpow(op: Opf, base: &Number, exp: &Number, modulus: &Number, name: &str) {
+fn check_modpow(
+    op: Opf,
+    base: &Number,
+    exp: &Number,
+    modulus: &Number,
+    name: &str,
+    flags: KlvmFlags,
+) {
     let mut alloc = Allocator::new();
     let args = build_args(&mut alloc, &[base, exp, modulus]);
-    let klvm_result = op(&mut alloc, args, MAX_COST);
+    let klvm_result = op(&mut alloc, args, MAX_COST, flags);
 
     // num-bigint panics on zero modulus or negative exponent, and
     // cargo-fuzz compiles with panic=abort so catch_unwind cannot
@@ -52,12 +60,7 @@ fuzz_target!(|input: (Vec<u8>, Vec<u8>, Vec<u8>)| {
     let exp = Number::from_signed_bytes_be(&input.1);
     let modulus = Number::from_signed_bytes_be(&input.2);
 
-    check_modpow(op_modpow, &base, &exp, &modulus, "modpow");
-    check_modpow(
-        op_modpow_malachite,
-        &base,
-        &exp,
-        &modulus,
-        "modpow_malachite",
-    );
+    for flags in [KlvmFlags::empty(), KlvmFlags::MALACHITE] {
+        check_modpow(op_modpow, &base, &exp, &modulus, "modpow", flags);
+    }
 });
