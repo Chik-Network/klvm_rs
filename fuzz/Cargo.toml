@@ -1,6 +1,6 @@
 [package]
 name = "klvm_rs-fuzz"
-version = "0.17.0"
+version = "0.17.1"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>"]
 publish = false
 edition = "2024"
@@ -99,12 +99,6 @@ test = false
 doc = false
 
 [[bin]]
-name = "serializer-cmp"
-path = "fuzz_targets/serializer_cmp.rs"
-test = false
-doc = false
-
-[[bin]]
 name = "tree-cache"
 path = "fuzz_targets/tree_cache.rs"
 test = false
@@ -119,5 +113,11 @@ doc = false
 [[bin]]
 name = "canonical-serialization-br"
 path = "fuzz_targets/canonical_serialization_br.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "intern"
+path = "fuzz_targets/intern.rs"
 test = false
 doc = false

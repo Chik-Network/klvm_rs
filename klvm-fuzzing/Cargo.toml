@@ -1,6 +1,6 @@
 [package]
 name = "klvm-fuzzing"
-version = "0.17.0"
+version = "0.17.1"
 edition = "2024"
 license = "Apache-2.0"
 description = "Fuzzing tools for klvm Projects on Rust"
@@ -17,4 +17,7 @@ arbitrary = { workspace = true, features = ["derive"] }
 klvmr = { workspace = true }
 chik-sha2 = { workspace = true }
 anyhow = { workspace = true }
-
+chik-bls = { workspace = true, features = ["arbitrary"] }
+clap = { workspace = true, features = ["derive"] }
+hex = { workspace = true }
+rand = { workspace = true }

@@ -1,8 +1,8 @@
 use crate::allocator::{Allocator, NodePtr};
 use crate::bls_ops::{
-    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_subtract, op_bls_g2_add, op_bls_g2_multiply,
-    op_bls_g2_negate, op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2,
-    op_bls_pairing_identity, op_bls_verify,
+    op_bls_g1_multiply, op_bls_g1_negate, op_bls_g1_negate_strict, op_bls_g1_subtract,
+    op_bls_g2_add, op_bls_g2_multiply, op_bls_g2_negate, op_bls_g2_negate_strict,
+    op_bls_g2_subtract, op_bls_map_to_g1, op_bls_map_to_g2, op_bls_pairing_identity, op_bls_verify,
 };
 use crate::core_ops::{op_cons, op_eq, op_first, op_if, op_listp, op_raise, op_rest};
 use crate::cost::Cost;
@@ -37,6 +37,11 @@ bitflags! {
         /// as well as the number of pairs.
         const LIMIT_HEAP = 0x0004;
 
+        /// Make bls_g1_negate and bls_g2_negate accept invalid points, as long
+        /// as they at least have the right number of bytes in the atoms.
+        /// Hard-fork; enable only when it activates.
+        const RELAXED_BLS = 0x0008;
+
         /// Enables the keccak256 op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_KECCAK_OPS_OUTSIDE_GUARD = 0x0100;
@@ -49,6 +54,7 @@ bitflags! {
 
         /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
         const ENABLE_SECP_OPS = 0x0800;
+
     }
 }
 
@@ -198,11 +204,13 @@ impl Dialect for ChikDialect {
             48 => op_coinid,
             49 => op_bls_g1_subtract,
             50 => op_bls_g1_multiply,
-            51 => op_bls_g1_negate,
+            51 if flags.contains(KlvmFlags::RELAXED_BLS) => op_bls_g1_negate,
+            51 if !flags.contains(KlvmFlags::RELAXED_BLS) => op_bls_g1_negate_strict,
             52 => op_bls_g2_add,
             53 => op_bls_g2_subtract,
             54 => op_bls_g2_multiply,
-            55 => op_bls_g2_negate,
+            55 if flags.contains(KlvmFlags::RELAXED_BLS) => op_bls_g2_negate,
+            55 if !flags.contains(KlvmFlags::RELAXED_BLS) => op_bls_g2_negate_strict,
             56 => op_bls_map_to_g1,
             57 => op_bls_map_to_g2,
             58 => op_bls_pairing_identity,
@@ -272,28 +280,18 @@ impl Dialect for ChikDialect {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// All single-flag constants. Add new flags here so we can assert no overlap.
-    const ALL_FLAGS: [KlvmFlags; 7] = [
-        KlvmFlags::CANONICAL_INTS,
-        KlvmFlags::NO_UNKNOWN_OPS,
-        KlvmFlags::LIMIT_HEAP,
-        KlvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
-        KlvmFlags::DISABLE_OP,
-        KlvmFlags::ENABLE_SHA256_TREE,
-        KlvmFlags::ENABLE_SECP_OPS,
-    ];
+    use bitflags::Flags;
 
     #[test]
     fn no_overlapping_flags() {
-        for (i, a) in ALL_FLAGS.iter().enumerate() {
-            for b in &ALL_FLAGS[i + 1..] {
+        for (i, a) in KlvmFlags::FLAGS.iter().enumerate() {
+            for b in &KlvmFlags::FLAGS[i + 1..] {
                 assert_eq!(
-                    a.bits() & b.bits(),
+                    a.value().bits() & b.value().bits(),
                     0,
-                    "flags {:08x} and {:08x} overlap",
-                    a.bits(),
-                    b.bits()
+                    "flags {} and {} overlap",
+                    a.name(),
+                    b.name()
                 );
             }
         }
