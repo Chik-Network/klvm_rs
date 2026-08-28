@@ -1,6 +1,6 @@
 [package]
 name = "klvm-rs-test-tools"
-version = "0.17.1"
+version = "0.17.2"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chiknetwork.com>"]
 edition = "2024"
 license = "Apache-2.0"
@@ -10,13 +10,17 @@ repository = "https://github.com/Chik-Network/klvm_rs/tools/"
 readme = "README.md"
 publish = false
 
+[features]
+openssl = ["klvmr/openssl"]
+
 [dependencies]
 hex-literal = { workspace = true }
 hex = { workspace = true }
 rand = { workspace = true }
 sha1 = { workspace = true }
 linreg = { workspace = true }
-klvmr = { workspace = true }
+bitflags = { workspace = true }
+klvmr = { workspace = true, features = ["counters"] }
 chik-bls = { workspace = true }
 num-bigint = { workspace = true }
 num-integer = { workspace = true }
@@ -47,5 +51,10 @@ bench = false
 
 [[bin]]
 name = "generate-stress-tests"
+test = false
+bench = false
+
+[[bin]]
+name = "run-klvm"
 test = false
 bench = false
