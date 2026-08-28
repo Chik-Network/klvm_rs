@@ -1,6 +1,6 @@
 use criterion::{Criterion, SamplingMode, criterion_group, criterion_main};
 use klvmr::allocator::{Allocator, NodePtr};
-use klvmr::chik_dialect::ChikDialect;
+use klvmr::chik_dialect::{ChikDialect, KlvmFlags};
 use klvmr::serde::node_from_bytes_backrefs;
 use std::fs::read_to_string;
 use std::time::Instant;
@@ -192,7 +192,7 @@ type EnvFn = fn(&mut Allocator) -> NodePtr;
 
 fn run_program_benchmark(c: &mut Criterion) {
     let mut a = Allocator::new();
-    let dialect = ChikDialect::new(0);
+    let dialect = ChikDialect::new(KlvmFlags::empty());
 
     let test_case_checkpoint = a.checkpoint();
 

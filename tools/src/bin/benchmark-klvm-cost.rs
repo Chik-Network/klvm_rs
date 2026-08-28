@@ -1,14 +1,14 @@
 use clap::Parser;
 use klvmr::allocator::{Allocator, NodePtr};
 use klvmr::run_program::run_program;
-use klvmr::{ChikDialect, ENABLE_SHA256_TREE};
+use klvmr::{ChikDialect, KlvmFlags};
 use linreg::linear_regression_of;
 use rand::{Rng, RngCore, SeedableRng, rngs::StdRng};
 use std::fs::{File, create_dir_all};
 use std::io::{Write, sink};
 use std::time::Instant;
 
-const DIALECT_FLAGS: u32 = ENABLE_SHA256_TREE;
+const DIALECT_FLAGS: KlvmFlags = KlvmFlags::ENABLE_SHA256_TREE;
 
 // When specifying the signature of operators, some arguments may be fixed
 // constants. The None argument slots will be replaced by the benchmark for the

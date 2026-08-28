@@ -5,9 +5,7 @@ use super::lazy_node::LazyNode;
 use crate::adapt_response::adapt_response;
 use klvmr::allocator::Allocator;
 use klvmr::chik_dialect::ChikDialect;
-use klvmr::chik_dialect::{
-    CANONICAL_INTS, DISABLE_OP, ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
-};
+use klvmr::chik_dialect::{KlvmFlags, MEMPOOL_MODE};
 use klvmr::cost::Cost;
 use klvmr::error::EvalErr;
 use klvmr::reduction::Response;
@@ -35,7 +33,8 @@ pub fn run_serialized_chik_program(
     max_cost: Cost,
     flags: u32,
 ) -> PyResult<(u64, LazyNode)> {
-    let mut allocator = if flags & LIMIT_HEAP != 0 {
+    let flags = KlvmFlags::from_bits_truncate(flags);
+    let mut allocator = if flags.contains(KlvmFlags::LIMIT_HEAP) {
         Allocator::new_limited(500000000)
     } else {
         Allocator::new()
@@ -90,12 +89,13 @@ fn klvm_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(serialized_length, m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_as_tree, m)?)?;
 
-    m.add("NO_UNKNOWN_OPS", NO_UNKNOWN_OPS)?;
-    m.add("LIMIT_HEAP", LIMIT_HEAP)?;
-    m.add("MEMPOOL_MODE", MEMPOOL_MODE)?;
-    m.add("ENABLE_SHA256_TREE", ENABLE_SHA256_TREE)?;
-    m.add("DISABLE_OP", DISABLE_OP)?;
-    m.add("CANONICAL_INTS", CANONICAL_INTS)?;
+    m.add("NO_UNKNOWN_OPS", KlvmFlags::NO_UNKNOWN_OPS.bits())?;
+    m.add("LIMIT_HEAP", KlvmFlags::LIMIT_HEAP.bits())?;
+    m.add("MEMPOOL_MODE", MEMPOOL_MODE.bits())?;
+    m.add("ENABLE_SHA256_TREE", KlvmFlags::ENABLE_SHA256_TREE.bits())?;
+    m.add("ENABLE_SECP_OPS", KlvmFlags::ENABLE_SECP_OPS.bits())?;
+    m.add("DISABLE_OP", KlvmFlags::DISABLE_OP.bits())?;
+    m.add("CANONICAL_INTS", KlvmFlags::CANONICAL_INTS.bits())?;
     m.add_class::<LazyNode>()?;
 
     Ok(())

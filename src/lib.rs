@@ -23,9 +23,7 @@ pub use allocator::{Allocator, Atom, NodePtr, ObjectType, SExp};
 pub use chik_dialect::ChikDialect;
 pub use run_program::run_program;
 
-pub use chik_dialect::{
-    ENABLE_KECCAK_OPS_OUTSIDE_GUARD, ENABLE_SHA256_TREE, LIMIT_HEAP, MEMPOOL_MODE, NO_UNKNOWN_OPS,
-};
+pub use chik_dialect::{KlvmFlags, MEMPOOL_MODE};
 
 #[cfg(feature = "counters")]
 pub use run_program::run_program_with_counters;

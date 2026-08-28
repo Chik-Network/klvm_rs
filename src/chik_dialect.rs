@@ -18,41 +18,55 @@ use crate::more_ops::{
 use crate::reduction::Response;
 use crate::secp_ops::{op_secp256k1_verify, op_secp256r1_verify};
 use crate::sha_tree_op::op_sha256_tree;
+use bitflags::bitflags;
 
-// require integers passed to operators use canonical representation, meaning no
-// unnecessary leading zeros
-pub const CANONICAL_INTS: u32 = 0x0001;
+bitflags! {
+    /// Type-safe KLVM dialect flags. Use for combining and checking flags only.
+    #[repr(transparent)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub struct KlvmFlags: u32 {
+        /// require integers passed to operators use canonical representation,
+        /// meaning no unnecessary leading zeros
+        const CANONICAL_INTS = 0x0001;
 
-// unknown operators are disallowed
-// (otherwise they are no-ops with well defined cost)
-pub const NO_UNKNOWN_OPS: u32 = 0x0002;
+        /// Unknown operators are disallowed (otherwise they are no-ops with
+        /// well defined cost).
+        const NO_UNKNOWN_OPS = 0x0002;
 
-// When set, limits the number of atom-bytes allowed to be allocated, as well as
-// the number of pairs
-pub const LIMIT_HEAP: u32 = 0x0004;
+        /// When set, limits the number of atom-bytes allowed to be allocated,
+        /// as well as the number of pairs.
+        const LIMIT_HEAP = 0x0004;
 
-// enables the keccak256 op *outside* the softfork guard.
-// This is a hard-fork and should only be enabled when it activates
-pub const ENABLE_KECCAK_OPS_OUTSIDE_GUARD: u32 = 0x0100;
+        /// Enables the keccak256 op *outside* the softfork guard. Hard-fork;
+        /// enable only when it activates.
+        const ENABLE_KECCAK_OPS_OUTSIDE_GUARD = 0x0100;
 
-pub const DISABLE_OP: u32 = 0x200;
+        const DISABLE_OP = 0x200;
 
-// this flag enables the sha256tree op *outside* the softfork guard.
-// This is a hard-fork and should only be enabled when it activates.
-pub const ENABLE_SHA256_TREE: u32 = 0x0400;
+        /// Enables the sha256tree op *outside* the softfork guard. Hard-fork;
+        /// enable only when it activates.
+        const ENABLE_SHA256_TREE = 0x0400;
 
-// The default mode when running generators in mempool-mode (i.e. the stricter
-// mode)
-pub const MEMPOOL_MODE: u32 = NO_UNKNOWN_OPS | LIMIT_HEAP | DISABLE_OP | CANONICAL_INTS;
+        /// Enables secp opcodes 64 (secp256k1_verify) and 65 (secp256r1_verify).
+        const ENABLE_SECP_OPS = 0x0800;
+    }
+}
+
+/// The default mode when running generators in mempool-mode (i.e. the stricter
+/// mode).
+pub const MEMPOOL_MODE: KlvmFlags = KlvmFlags::NO_UNKNOWN_OPS
+    .union(KlvmFlags::LIMIT_HEAP)
+    .union(KlvmFlags::DISABLE_OP)
+    .union(KlvmFlags::CANONICAL_INTS);
 
 fn unknown_operator(
     allocator: &mut Allocator,
     o: NodePtr,
     args: NodePtr,
-    flags: u32,
+    flags: KlvmFlags,
     max_cost: Cost,
 ) -> Response {
-    if (flags & NO_UNKNOWN_OPS) != 0 {
+    if flags.contains(KlvmFlags::NO_UNKNOWN_OPS) {
         Err(EvalErr::Unimplemented(o))?
     } else {
         op_unknown(allocator, o, args, max_cost)
@@ -60,12 +74,20 @@ fn unknown_operator(
 }
 
 pub struct ChikDialect {
-    flags: u32,
+    flags: KlvmFlags,
 }
 
 impl ChikDialect {
-    pub fn new(flags: u32) -> ChikDialect {
+    pub fn new(flags: KlvmFlags) -> ChikDialect {
         ChikDialect { flags }
+    }
+}
+
+impl Default for ChikDialect {
+    fn default() -> Self {
+        ChikDialect {
+            flags: KlvmFlags::empty(),
+        }
     }
 }
 
@@ -81,13 +103,13 @@ impl Dialect for ChikDialect {
         let flags = self.flags
             | match extension {
                 // This is the default set of operators, so no special flags need to be added.
-                OperatorSet::Default => 0,
+                OperatorSet::Default => KlvmFlags::empty(),
 
                 // Since BLS has been hardforked in universally, this has no effect.
-                OperatorSet::Bls => 0,
+                OperatorSet::Bls => KlvmFlags::empty(),
 
                 // Keccak is allowed as if it were a default operator, inside of the softfork guard.
-                OperatorSet::Keccak => ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
+                OperatorSet::Keccak => KlvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
         let op_len = allocator.atom_len(o);
@@ -144,14 +166,14 @@ impl Dialect for ChikDialect {
             17 => op_subtract,
             18 => op_multiply,
             19 => {
-                if (flags & DISABLE_OP) != 0 {
+                if flags.contains(KlvmFlags::DISABLE_OP) {
                     op_div_limit
                 } else {
                     op_div
                 }
             }
             20 => {
-                if (flags & DISABLE_OP) != 0 {
+                if flags.contains(KlvmFlags::DISABLE_OP) {
                     op_divmod_limit
                 } else {
                     op_divmod
@@ -186,21 +208,23 @@ impl Dialect for ChikDialect {
             58 => op_bls_pairing_identity,
             59 => op_bls_verify,
             60 => {
-                if (flags & DISABLE_OP) != 0 {
+                if flags.contains(KlvmFlags::DISABLE_OP) {
                     return Err(EvalErr::Unimplemented(o))?;
                 } else {
                     op_modpow
                 }
             }
             61 => {
-                if (flags & DISABLE_OP) != 0 {
+                if flags.contains(KlvmFlags::DISABLE_OP) {
                     op_mod_limit
                 } else {
                     op_mod
                 }
             }
-            62 if (flags & ENABLE_KECCAK_OPS_OUTSIDE_GUARD) != 0 => op_keccak256,
-            63 if (flags & ENABLE_SHA256_TREE) != 0 => op_sha256_tree,
+            62 if flags.contains(KlvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD) => op_keccak256,
+            63 if flags.contains(KlvmFlags::ENABLE_SHA256_TREE) => op_sha256_tree,
+            64 if flags.contains(KlvmFlags::ENABLE_SECP_OPS) => op_secp256k1_verify,
+            65 if flags.contains(KlvmFlags::ENABLE_SECP_OPS) => op_secp256r1_verify,
             _ => {
                 return unknown_operator(allocator, o, argument_list, flags, max_cost);
             }
@@ -237,10 +261,41 @@ impl Dialect for ChikDialect {
     }
 
     fn allow_unknown_ops(&self) -> bool {
-        (self.flags & NO_UNKNOWN_OPS) == 0
+        !self.flags.contains(KlvmFlags::NO_UNKNOWN_OPS)
     }
 
-    fn flags(&self) -> u32 {
+    fn flags(&self) -> KlvmFlags {
         self.flags
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// All single-flag constants. Add new flags here so we can assert no overlap.
+    const ALL_FLAGS: [KlvmFlags; 7] = [
+        KlvmFlags::CANONICAL_INTS,
+        KlvmFlags::NO_UNKNOWN_OPS,
+        KlvmFlags::LIMIT_HEAP,
+        KlvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
+        KlvmFlags::DISABLE_OP,
+        KlvmFlags::ENABLE_SHA256_TREE,
+        KlvmFlags::ENABLE_SECP_OPS,
+    ];
+
+    #[test]
+    fn no_overlapping_flags() {
+        for (i, a) in ALL_FLAGS.iter().enumerate() {
+            for b in &ALL_FLAGS[i + 1..] {
+                assert_eq!(
+                    a.bits() & b.bits(),
+                    0,
+                    "flags {:08x} and {:08x} overlap",
+                    a.bits(),
+                    b.bits()
+                );
+            }
+        }
     }
 }

@@ -1,5 +1,5 @@
 use klvmr::allocator::{Allocator, NodePtr};
-use klvmr::chik_dialect::{ChikDialect, ENABLE_SHA256_TREE};
+use klvmr::chik_dialect::{ChikDialect, KlvmFlags};
 use klvmr::reduction::Reduction;
 use klvmr::run_program::run_program;
 use klvmr::serde::{node_from_bytes, node_to_bytes};
@@ -20,7 +20,7 @@ CPU.
 // this function calculates the cost per node theoretically
 // for a perfectly balanced binary tree
 fn time_complete_tree(a: &mut Allocator, sha_prog: NodePtr, leaf_size: usize, output_file: &str) {
-    let dialect = ChikDialect::new(ENABLE_SHA256_TREE);
+    let dialect = ChikDialect::new(KlvmFlags::ENABLE_SHA256_TREE);
     let op_code = a.new_small_number(63).unwrap();
     let quote = a.one();
 

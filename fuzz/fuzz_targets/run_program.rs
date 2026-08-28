@@ -4,7 +4,7 @@ use klvm_fuzzing::make_tree_limits;
 use libfuzzer_sys::fuzz_target;
 
 use klvmr::allocator::Allocator;
-use klvmr::chik_dialect::{ChikDialect, MEMPOOL_MODE, NO_UNKNOWN_OPS};
+use klvmr::chik_dialect::{ChikDialect, KlvmFlags, MEMPOOL_MODE};
 use klvmr::cost::Cost;
 use klvmr::reduction::Reduction;
 use klvmr::run_program::run_program;
@@ -19,7 +19,7 @@ fuzz_target!(|data: &[u8]| {
 
     let allocator_checkpoint = allocator.checkpoint();
 
-    for flags in [0, NO_UNKNOWN_OPS, MEMPOOL_MODE] {
+    for flags in [KlvmFlags::empty(), KlvmFlags::NO_UNKNOWN_OPS, MEMPOOL_MODE] {
         let dialect = ChikDialect::new(flags);
         allocator.restore_checkpoint(&allocator_checkpoint);
 
