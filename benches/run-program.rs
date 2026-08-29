@@ -192,7 +192,7 @@ type EnvFn = fn(&mut Allocator) -> NodePtr;
 
 fn run_program_benchmark(c: &mut Criterion) {
     let mut a = Allocator::new();
-    let dialect = ChikDialect::new(KlvmFlags::empty());
+    let dialect = ChikDialect::new(KlvmFlags::ENABLE_GC);
 
     let test_case_checkpoint = a.checkpoint();
 

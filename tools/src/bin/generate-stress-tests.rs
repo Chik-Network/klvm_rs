@@ -148,7 +148,7 @@ pub fn main() {
 
         let max_cost = std::cmp::max(1, 11_000_000_000 - bytes.len() as u64 * 12_000);
 
-        let dialect = ChikDialect::new(KlvmFlags::empty());
+        let dialect = ChikDialect::new(KlvmFlags::ENABLE_GC);
         let start = Instant::now();
         let Reduction(cost, _) =
             klvmr::run_program(&mut a, &dialect, program, NodePtr::NIL, 20_000_000_000)

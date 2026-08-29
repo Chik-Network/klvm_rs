@@ -22,6 +22,7 @@ fuzz_target!(|data: &[u8]| -> Corpus {
     let allocator_checkpoint = allocator.checkpoint();
 
     for flags in [
+        KlvmFlags::ENABLE_GC,
         KlvmFlags::empty(),
         KlvmFlags::NO_UNKNOWN_OPS,
         MEMPOOL_MODE,
