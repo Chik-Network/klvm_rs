@@ -34,6 +34,7 @@ fn check_modpow(
 
     match klvm_result {
         Err(EvalErr::CostExceeded) => {}
+        Err(EvalErr::InvalidOpArg(_, _)) => {}
         Err(_) => {
             assert!(
                 invalid_input,
