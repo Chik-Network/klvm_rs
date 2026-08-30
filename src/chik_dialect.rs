@@ -49,6 +49,9 @@ bitflags! {
         /// gc_candidate() always returns false.
         const ENABLE_GC = 0x0020;
 
+        /// some limits for mempool mode
+        const LIMITS = 0x0040;
+
         /// Enables the keccak256 op *outside* the softfork guard. Hard-fork;
         /// enable only when it activates.
         const ENABLE_KECCAK_OPS_OUTSIDE_GUARD = 0x0100;
@@ -64,11 +67,22 @@ bitflags! {
 
         /// Use malachite-bigint instead of num-bigint for div, divmod, mod, and modpow.
         const MALACHITE = 0x1000;
+
+        /// Use the revised cost model for operators (if, listp, sha256,
+        /// add, subtract, multiply, div, divmod, mod, gr, substr, logand,
+        /// logior, logxor, coinid, g1_multiply, g2_multiply, g1_map,
+        /// g2_map, bls_pairing_identity, bls_verify, modpow, keccak256,
+        /// sha256tree, softfork). Off by default.
+        const NEW_COST_MODEL = 0x2000;
     }
 }
 
 /// The default mode when running generators in mempool-mode (i.e. the stricter
 /// mode).
+///
+/// `LIMITS` is deliberately excluded: callers OR flags onto `MEMPOOL_MODE` and
+/// can't remove a baked-in flag, so `LIMITS` is set explicitly only when
+/// enforcing pre-hard-fork operand size limits.
 pub const MEMPOOL_MODE: KlvmFlags = KlvmFlags::NO_UNKNOWN_OPS
     .union(KlvmFlags::LIMIT_HEAP)
     .union(KlvmFlags::DISABLE_OP)
@@ -94,7 +108,12 @@ pub struct ChikDialect {
 }
 
 impl ChikDialect {
-    pub fn new(flags: KlvmFlags) -> ChikDialect {
+    pub fn new(mut flags: KlvmFlags) -> ChikDialect {
+        // The caller is responsible for setting LIMITS and NEW_COST_MODEL as
+        // mutually exclusive flags. This normalization is purely defensive.
+        if flags.contains(KlvmFlags::NEW_COST_MODEL) {
+            flags.remove(KlvmFlags::LIMITS);
+        }
         ChikDialect { flags }
     }
 }
@@ -151,6 +170,10 @@ impl Dialect for ChikDialect {
 
                 // Keccak is allowed as if it were a default operator, inside of the softfork guard.
                 OperatorSet::Keccak => KlvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
+
+                // Everything introduced before the hard fork is available in
+                // the cost-exempt mode.
+                OperatorSet::PreHardFork => KlvmFlags::ENABLE_KECCAK_OPS_OUTSIDE_GUARD,
             };
 
         let op_len = allocator.atom_len(o);
@@ -237,7 +260,10 @@ impl Dialect for ChikDialect {
             58 => op_bls_pairing_identity,
             59 => op_bls_verify,
             60 => {
-                if flags.contains(KlvmFlags::DISABLE_OP) {
+                // DISABLE_OP disables modpow, unless the cost model bounds it.
+                if flags.contains(KlvmFlags::DISABLE_OP)
+                    && !flags.contains(KlvmFlags::NEW_COST_MODEL)
+                {
                     return Err(EvalErr::Unimplemented(o))?;
                 }
                 op_modpow
@@ -267,18 +293,28 @@ impl Dialect for ChikDialect {
     // interpret the extension argument passed to the softfork operator, and
     // return the Operators it enables (or None) if we don't know what it means
     fn softfork_extension(&self, ext: u32) -> OperatorSet {
-        match ext {
-            // Extension 0 is for the BLS operators, and is still valid.
-            // However, the extension doesn't add any addition opcodes,
-            // because the BLS operators were hardforked into the main set.
-            0 => OperatorSet::Bls,
+        if self.flags.contains(KlvmFlags::NEW_COST_MODEL) {
+            // Both ext-0 (BLS) and ext-1 (keccak) become PreHardFork, which
+            // broadens ext-0 to also allow keccak256. This is fine because the
+            // new cost model is itself a hard fork, activated at the same height.
+            match ext {
+                0 | 1 => OperatorSet::PreHardFork,
+                _ => OperatorSet::Default,
+            }
+        } else {
+            match ext {
+                // Extension 0 is for the BLS operators, and is still valid.
+                // However, the extension doesn't add any addition opcodes,
+                // because the BLS operators were hardforked into the main set.
+                0 => OperatorSet::Bls,
 
-            // Extension 1 is for the keccak256 operator.
-            1 => OperatorSet::Keccak,
+                // Extension 1 is for the keccak256 operator.
+                1 => OperatorSet::Keccak,
 
-            // Extensions 2 and beyond are considered invalid by the mempool.
-            // However, all future extensions are valid in consensus mode and reserved for future softforks.
-            _ => OperatorSet::Default,
+                // Extensions 2 and beyond are considered invalid by the mempool.
+                // However, all future extensions are valid in consensus mode and reserved for future softforks.
+                _ => OperatorSet::Default,
+            }
         }
     }
 
@@ -309,5 +345,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn mempool_mode_excludes_limits() {
+        assert!(!MEMPOOL_MODE.contains(KlvmFlags::LIMITS));
+    }
+
+    #[test]
+    fn new_cost_model_clears_limits() {
+        // NEW_COST_MODEL drops LIMITS; the two are mutually exclusive.
+        let dialect = ChikDialect::new(KlvmFlags::NEW_COST_MODEL | KlvmFlags::LIMITS);
+        assert!(dialect.flags().contains(KlvmFlags::NEW_COST_MODEL));
+        assert!(!dialect.flags().contains(KlvmFlags::LIMITS));
+
+        let dialect = ChikDialect::new(KlvmFlags::LIMITS);
+        assert!(dialect.flags().contains(KlvmFlags::LIMITS));
     }
 }

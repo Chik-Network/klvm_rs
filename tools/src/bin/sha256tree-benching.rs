@@ -19,8 +19,14 @@ CPU.
 
 // this function calculates the cost per node theoretically
 // for a perfectly balanced binary tree
-fn time_complete_tree(a: &mut Allocator, sha_prog: NodePtr, leaf_size: usize, output_file: &str) {
-    let dialect = ChikDialect::new(KlvmFlags::ENABLE_SHA256_TREE.union(KlvmFlags::ENABLE_GC));
+fn time_complete_tree(
+    a: &mut Allocator,
+    sha_prog: NodePtr,
+    leaf_size: usize,
+    output_file: &str,
+    flags: KlvmFlags,
+) {
+    let dialect = ChikDialect::new(flags);
     let op_code = a.new_small_number(63).unwrap();
     let quote = a.one();
 
@@ -66,10 +72,18 @@ fn time_complete_tree(a: &mut Allocator, sha_prog: NodePtr, leaf_size: usize, ou
         a.restore_checkpoint(&checkpoint);
 
         if i == 9 {
+            let ns_per_cost_native = duration_native as f64 / cost_native as f64;
+            let ns_per_cost_klvm = duration_klvm as f64 / cost_klvm as f64;
             println!("\ncost for hashing complete tree (leaf size: {leaf_size})");
-            println!("           time     cost");
-            println!("Native: {:-7}  {:-7}", duration_native, cost_native);
-            println!("KLVM:   {:-7}  {:-7}", duration_klvm, cost_klvm);
+            println!("           time     cost  ns/cost");
+            println!(
+                "Native: {:-7}  {:-7}  {:.4}",
+                duration_native, cost_native, ns_per_cost_native
+            );
+            println!(
+                "KLVM:   {:-7}  {:-7}  {:.4}",
+                duration_klvm, cost_klvm, ns_per_cost_klvm
+            );
             println!(
                 "ratio:    {:.1}%    {:.1}%",
                 duration_native as f64 / duration_klvm as f64 * 100.0,
@@ -99,6 +113,14 @@ plot \"{log_file}\" using 1:2 with points title \"native time\" axis x1y1, \\
 }
 
 fn main() {
+    let new_cost_model = std::env::args().any(|a| a == "--new-cost-model");
+
+    let mut flags = KlvmFlags::ENABLE_SHA256_TREE | KlvmFlags::ENABLE_GC;
+    if new_cost_model {
+        flags |= KlvmFlags::NEW_COST_MODEL;
+        println!("Using NEW_COST_MODEL");
+    }
+
     let shaprogbytes = hex::decode(
         "ff02ffff01ff02ff02ffff04ff02ffff04ff03ff80808080ffff04ffff01ff02ffff03ffff07ff0580ffff01ff0bffff0102ffff02ff02ffff04ff02ffff04ff09ff80808080ffff02ff02ffff04ff02ffff04ff0dff8080808080ffff01ff0bffff0101ff058080ff0180ff018080"
     ).unwrap();
@@ -110,7 +132,7 @@ fn main() {
 
     for leaf_size in &[0, 2, 1000, 100000] {
         let log_file = format!("measurements/shatree-compare-{leaf_size}.dat");
-        time_complete_tree(&mut a, shaprog, *leaf_size, &log_file);
+        time_complete_tree(&mut a, shaprog, *leaf_size, &log_file, flags);
         write_plot(&log_file, &format!("{leaf_size}-byte-atoms"), &mut gnuplot);
     }
 

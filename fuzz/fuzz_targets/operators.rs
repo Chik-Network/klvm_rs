@@ -80,10 +80,11 @@ const FUNS: &[Opf] = &[
 ];
 
 const FLAGS: &[KlvmFlags] = &[
-    KlvmFlags::empty(),
-    KlvmFlags::DISABLE_OP,
-    KlvmFlags::MALACHITE,
-    KlvmFlags::RELAXED_BLS,
+    KlvmFlags::LIMITS,
+    KlvmFlags::DISABLE_OP.union(KlvmFlags::LIMITS),
+    KlvmFlags::MALACHITE.union(KlvmFlags::LIMITS),
+    KlvmFlags::RELAXED_BLS.union(KlvmFlags::LIMITS),
+    KlvmFlags::NEW_COST_MODEL,
 ];
 
 fuzz_target!(|data: &[u8]| {

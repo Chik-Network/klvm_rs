@@ -1,6 +1,6 @@
 [package]
 name = "klvm-rs-test-tools"
-version = "0.18.0"
+version = "0.19.0"
 authors = ["Arvid Norberg <arvid@chiknetwork.com>", "Cameron Cooper <cameron@chiknetwork.com>"]
 edition = "2024"
 license = "Apache-2.0"
@@ -15,8 +15,8 @@ openssl = ["klvmr/openssl"]
 
 [dependencies]
 hex = { workspace = true }
+hex-literal = { workspace = true }
 rand = { workspace = true }
-linreg = { workspace = true }
 bitflags = { workspace = true }
 klvmr = { workspace = true, features = ["counters"] }
 chik-bls = { workspace = true }
